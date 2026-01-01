@@ -3,7 +3,7 @@
 This plan implements the MVP described in `SYSTEM_DESIGN.md` using:
 
 - Next.js UI (React) + **Route Handlers (HTTP API) only**
-- SQLite persistence
+- SQLite persistence (using sql.js for cross-platform compatibility)
 - Desktop-first UI with **Sidebar navigation**
 - **Shadcn UI components** for clean, consistent design
 - Snake_case DB columns
@@ -60,6 +60,24 @@ Each phase is designed so you can **run the app and see visible progress** witho
     - `dropdown-menu.tsx` ✅
     - `navigation-menu.tsx` ✅
     - `separator.tsx` ✅
+- `lib/`
+  - `db/` ✅ (Database layer)
+    - `index.ts` ✅ (Database connection singleton with sql.js)
+    - `types.ts` ✅ (TypeScript types for all entities)
+    - `schema.ts` ✅ (Schema initialization and seeding)
+    - `init.ts` ✅ (Database initialization utilities)
+    - `repositories/` ✅ (Data access layer)
+      - `index.ts` ✅ (Exports all repository functions)
+      - `wallets.ts` ✅ (Wallet CRUD + balance calculations)
+      - `categories.ts` ✅ (Category CRUD + spending queries)
+      - `savings-buckets.ts` ✅ (Savings bucket CRUD)
+      - `transactions.ts` ✅ (Transaction CRUD + transfers + aggregations)
+      - `budgets.ts` ✅ (Budget CRUD + budget vs actual tracking)
+    - `__tests__/` ✅ (Repository tests)
+      - `wallets.test.ts` ✅ (22 tests)
+      - `categories.test.ts` ✅ (31 tests)
+      - `transactions.test.ts` ✅ (40 tests)
+      - `budgets.test.ts` ✅ (36 tests)
 
 If you prefer a `src/` root, mirror the same module approach under `src/` and import from there. The key is to avoid dumping feature-specific helpers into global folders.
 
@@ -69,14 +87,16 @@ If you prefer a `src/` root, mirror the same module approach under `src/` and im
 
 - **Unit tests**: pure helpers (formatters, validation, query builders) live next to code.
 - **Integration tests**: DB/data-access functions (SQLite) with a temporary test DB.
-- **Route handler tests**: call handler functions with mocked Requests, or test through Next’s fetch layer if configured.
+- **Route handler tests**: call handler functions with mocked Requests, or test through Next's fetch layer if configured.
 - **UI smoke tests** (minimal): render key pages/components and validate basic structure/empty states.
 
 Tooling choice for tests should match the existing stack, but the plan assumes a typical TypeScript test runner is added/configured if missing.
 
+**Current Test Status**: 153 tests passing (6 test files)
+
 ---
 
-## Phase 0 — Foundations (You can see a running shell)
+## Phase 0 — Foundations (You can see a running shell) ✅ COMPLETED
 
 Goal: establish project conventions, Shadcn UI + Sidebar desktop layout baseline, and a "health" API to validate the HTTP boundary.
 
@@ -91,175 +111,158 @@ Goal: establish project conventions, Shadcn UI + Sidebar desktop layout baseline
 
 ---
 
-## Phase 1 — Database Layer (You can see seed data in UI placeholders)
+## Phase 1 — Database Layer (You can see seed data in UI placeholders) ✅ COMPLETED
 
 Goal: add SQLite data layer with snake_case schema, minimal migrations/initialization, and safe access patterns. UI is ready with Shadcn components and sidebar.
 
 ### Execution Steps
 
-- [ ] **Step 1.1**: Implement DB bootstrap (connection + migration runner) in a dedicated DB module **AND** add integration tests that create a test DB and verify schema exists.
-  - Deliverable: A repeatable way to initialize schema locally and in tests.
+- [x] **Step 1.1**: Implement DB bootstrap (connection + migration runner) in a dedicated DB module **AND** add integration tests that create a test DB and verify schema exists.
+  - Deliverable: ✅ COMPLETED - Database module at `lib/db/index.ts` using sql.js for cross-platform SQLite support. Schema initialization in `lib/db/schema.ts`. Async initialization with `initializeDatabase()`.
 
-- [ ] **Step 1.2**: Define schema for `wallets` and `categories` (snake_case columns) **AND** test schema constraints (e.g., NOT NULL names).
-  - Deliverable: DB tables exist: `wallets`, `categories`.
+- [x] **Step 1.2**: Define schema for all entities (snake_case columns) **AND** test schema constraints.
+  - Deliverable: ✅ COMPLETED - 5 tables created:
+    - `wallets` (id, name, created_at, updated_at)
+    - `categories` (id, name, type, created_at, updated_at) with type constraint
+    - `savings_buckets` (id, name, created_at, updated_at)
+    - `transactions` (id, type, amount, date, note, wallet_id, category_id, transfer_id, savings_bucket_id, created_at, updated_at)
+    - `budgets` (id, month, category_id, limit_amount, created_at, updated_at)
+  - Foreign key constraints and indexes implemented.
 
-- [ ] **Step 1.3**: Add seed utilities for local dev (optional) **AND** test that seed inserts expected rows.
-  - Deliverable: You can populate a small set of wallets/categories for quick UI testing.
+- [x] **Step 1.3**: Add seed utilities for local dev **AND** test that seed inserts expected rows.
+  - Deliverable: ✅ COMPLETED - `seedDefaultCategories()` function creates 8 expense categories and 5 income categories.
+
+- [x] **Step 1.4**: Implement complete data access layer (repositories) for all entities **AND** add comprehensive tests.
+  - Deliverable: ✅ COMPLETED - Full CRUD operations for:
+    - **Wallets**: list, getById, getByName, create, update, delete, balance calculations, getAllWithBalances
+    - **Categories**: list, getByType, getById, getByNameAndType, create, update, delete, getCategoriesWithSpent
+    - **Savings Buckets**: list, getById, getByName, create, update, delete, balance tracking
+    - **Transactions**: list with filters, getById, create, update, delete, createTransfer (atomic), getTotalIncome, getTotalExpenses, getSpendingByCategory, getNetWorth
+    - **Budgets**: list with filters, getById, getByMonthAndCategory, create, upsert, update, delete, getBudgetsWithActual, copyBudgetsToMonth
+  - **129 tests** covering all repository functions.
+
+### Technical Notes (Phase 1):
+
+- Used `sql.js` instead of `better-sqlite3` for better cross-platform compatibility (no native compilation required)
+- All amounts stored as integers (IDR) to avoid floating-point issues
+- Transfers are atomic: two linked transactions with shared `transfer_id`
+- Wallet balances are derived from transactions (not stored)
+- Budget vs actual tracking includes remaining calculation
 
 ---
 
-## Phase 2 — Wallets & Categories (You can CRUD reference data)
+## Phase 2 — API Route Handlers (CRUD endpoints for all entities)
 
-Goal: implement reference data CRUD end-to-end (Route Handlers + desktop-first pages with Shadcn UI).
+Goal: implement HTTP API endpoints for all entities using Next.js Route Handlers.
 
 ### Execution Steps
 
-- [ ] **Step 2.1**: Implement Wallets data-access functions (list/create/update/delete) **AND** add unit/integration tests for each.
-  - Deliverable: Wallet operations work at the data layer.
+- [ ] **Step 2.1**: Implement Wallets Route Handlers (`/api/wallets`, `/api/wallets/:id`) **AND** add route handler tests.
+  - Deliverable: Wallet CRUD over HTTP (GET list, GET by id, POST create, PUT update, DELETE).
 
-- [ ] **Step 2.2**: Implement Wallets Route Handlers (`/api/wallets`, `/api/wallets/:id`) **AND** add route handler tests.
-  - Deliverable: Wallet CRUD over HTTP.
-
-- [ ] **Step 2.3**: Build desktop-first Wallets page with Tailwind (table + modal/drawer form) using the API **AND** add UI smoke test.
-  - Deliverable: You can manage wallets in the UI.
-
-- [ ] **Step 2.4**: Implement Categories data-access functions (CRUD) **AND** add tests.
-  - Deliverable: Category operations work at the data layer.
-
-- [ ] **Step 2.5**: Implement Categories Route Handlers (`/api/categories`, `/api/categories/:id`) **AND** add tests.
+- [ ] **Step 2.2**: Implement Categories Route Handlers (`/api/categories`, `/api/categories/:id`) **AND** add route handler tests.
   - Deliverable: Category CRUD over HTTP.
 
-- [ ] **Step 2.6**: Build desktop-first Categories page (table + create/edit) **AND** add UI smoke test.
+- [ ] **Step 2.3**: Implement Transactions Route Handlers (`/api/transactions`, `/api/transactions/:id`) **AND** add route handler tests.
+  - Deliverable: Transaction CRUD over HTTP with filter support (type, wallet, category, date range).
+
+- [ ] **Step 2.4**: Implement Transfers Route Handler (`/api/transfers`) **AND** add route handler tests.
+  - Deliverable: Transfer creation via HTTP (atomic two-sided movement).
+
+- [ ] **Step 2.5**: Implement Budgets Route Handlers (`/api/budgets`) **AND** add route handler tests.
+  - Deliverable: Budget CRUD over HTTP with upsert support.
+
+- [ ] **Step 2.6**: Implement Dashboard Route Handlers **AND** add route handler tests.
+  - `/api/dashboard/summary` - total income, expense, net worth, money left to spend
+  - `/api/dashboard/spending-by-category` - category breakdown
+  - Deliverable: Dashboard aggregation data via HTTP.
+
+---
+
+## Phase 3 — Wire Up UI Pages (You can CRUD all data)
+
+Goal: connect the existing UI pages to the API endpoints.
+
+### Execution Steps
+
+- [ ] **Step 3.1**: Build Wallets page functionality (table + create/edit modal) using the API **AND** add UI tests.
+  - Deliverable: You can manage wallets in the UI.
+
+- [ ] **Step 3.2**: Build Categories page functionality (table + create/edit modal) using the API **AND** add UI tests.
   - Deliverable: You can manage categories in the UI.
 
----
-
-## Phase 3 — Transactions (Expense/Income) (You can record and browse transactions)
-
-Goal: implement transactions for expense and income first (most value early). UI foundation with Shadcn components already in place.
-
-### Execution Steps
-
-- [ ] **Step 3.1**: Define transaction validation utilities (IDR amount rules, required fields by type) **AND** add unit tests.
-  - Deliverable: Centralized validation that UI and API can share (API must enforce).
-
-- [ ] **Step 3.2**: Implement Transactions data-access (create/list with filters; update/delete) **AND** add integration tests for filters (date range, wallet, category, type).
-  - Deliverable: Transactions persist and can be queried predictably.
-
-- [ ] **Step 3.3**: Implement Transactions Route Handlers (`/api/transactions`, `/api/transactions/:id`) **AND** add tests.
-  - Deliverable: Expense/income CRUD over HTTP (at least create+list for MVP visibility).
-
-- [ ] **Step 3.4**: Build desktop-first Transactions page (filter bar + table + create form) **AND** add UI smoke test.
+- [ ] **Step 3.3**: Build Transactions page functionality (filter bar + table + create form) using the API **AND** add UI tests.
   - Deliverable: You can add expenses/income and see them listed.
 
----
-
-## Phase 4 — Transfers (Atomic wallet-to-wallet movement) (You can move money between wallets)
-
-Goal: implement transfer business rules and atomic writes (two linked entries). Forms and UI components ready via Shadcn.
-
-### Execution Steps
-
-- [ ] **Step 4.1**: Implement transfer creation in data-access with DB transaction (two linked transaction rows via `transfer_id`) **AND** add integration tests verifying atomicity and balanced entries.
-  - Deliverable: Transfer write is all-or-nothing and creates two entries.
-
-- [ ] **Step 4.2**: Implement `/api/transfers` Route Handler (create) **AND** add tests for validation (wallets not equal, amount > 0).
-  - Deliverable: Transfers are created via HTTP.
-
-- [ ] **Step 4.3**: Extend Transactions UI to include a “Transfer” create flow (desktop modal/drawer) **AND** add UI smoke test.
+- [ ] **Step 3.4**: Add Transfer creation flow to Transactions page **AND** add UI tests.
   - Deliverable: Users can initiate transfers from the UI.
 
----
-
-## Phase 5 — Budgets (Monthly, per category) (You can set a budget and view budget vs actual)
-
-Goal: implement monthly budgets and "budget vs actual" calculation. Budget UI components already designed with Shadcn.
-
-### Execution Steps
-
-- [ ] **Step 5.1**: Implement Budgets data-access (list-by-month, upsert by month+category, delete) **AND** add integration tests for upsert behavior.
-  - Deliverable: One budget per (month, category).
-
-- [ ] **Step 5.2**: Implement Budgets Route Handlers (`/api/budgets`) **AND** add tests.
-  - Deliverable: Budgets manageable via HTTP.
-
-- [ ] **Step 5.3**: Implement budget aggregation query: actual spent per category per month **AND** add tests with seeded transactions.
-  - Deliverable: Accurate budget vs actual numbers.
-
-- [ ] **Step 5.4**: Build desktop-first Budgets page (month selector + table with limit/actual/remaining) **AND** add UI smoke test.
+- [ ] **Step 3.5**: Build Budgets page functionality (month selector + table with limit/actual/remaining) using the API **AND** add UI tests.
   - Deliverable: You can set budgets and see progress.
 
----
-
-## Phase 6 — Dashboard (Aggregations & Charts) (You can see real insights)
-
-Goal: implement the MVP dashboard endpoints and UI widgets including "money left to spend". Dashboard layout with Shadcn cards ready.
-
-### Execution Steps
-
-- [ ] **Step 6.1**: Implement wallet balance + net worth aggregation (derived from ledger) **AND** add integration tests for computed balances.
-  - Deliverable: Computed balances are correct.
-
-- [ ] **Step 6.2**: Implement dashboard summary endpoint(s) including:
-  - total income
-  - total expense
-  - money left to spend (income - expense)
-  - current net worth
-    **AND** add route handler tests.
-  - Deliverable: Summary data drives UI cards.
-
-- [ ] **Step 6.3**: Implement dashboard time-series aggregations (spending over time, net worth over time) **AND** add tests for bucketing and date boundaries.
-  - Deliverable: Stable time-series for charts.
-
-- [ ] **Step 6.4**: Implement spend-by-category aggregation **AND** add tests.
-  - Deliverable: Category breakdown for the selected time window.
-
-- [ ] **Step 6.5**: Build desktop-first Dashboard page with Tailwind (summary cards + charts) **AND** add UI smoke test.
-  - Deliverable: Dashboard shows meaningful charts even with small data.
+- [ ] **Step 3.6**: Build Dashboard page with summary cards and charts using the API **AND** add UI tests.
+  - Deliverable: Dashboard shows meaningful insights.
 
 ---
 
-## Phase 7 — Hardening & MVP Polish (You can ship)
+## Phase 4 — Hardening & MVP Polish (You can ship)
 
-Goal: improve reliability, usability, and portability for the planned future backend migration. UI foundation strong with Shadcn + sidebar.
+Goal: improve reliability, usability, and portability for the planned future backend migration.
 
 ### Execution Steps
 
-- [ ] **Step 7.1**: Add consistent error handling + validation responses across Route Handlers **AND** add tests for error shapes.
+- [ ] **Step 4.1**: Add consistent error handling + validation responses across Route Handlers **AND** add tests for error shapes.
   - Deliverable: Predictable API error contract.
 
-- [ ] **Step 7.2**: Add basic logging for mutations (create/update/delete) **AND** add tests verifying logging calls (where feasible).
+- [ ] **Step 4.2**: Add basic logging for mutations (create/update/delete) **AND** add tests verifying logging calls.
   - Deliverable: Minimal observability.
 
-- [ ] **Step 7.3**: Add empty states, loading states, and desktop UX refinements (keyboard-friendly forms where possible) **AND** update UI smoke tests.
+- [ ] **Step 4.3**: Add empty states, loading states, and desktop UX refinements **AND** update UI tests.
   - Deliverable: Usable MVP experience.
 
-- [ ] **Step 7.4**: Add a minimal export/backup option (e.g., JSON export from API) **AND** add route handler test.
-  - Deliverable: Safety net for SQLite file risk and user trust (optional but recommended).
+- [ ] **Step 4.4**: Add a minimal export/backup option (e.g., JSON export from API) **AND** add route handler test.
+  - Deliverable: Safety net for SQLite file risk and user trust.
 
 ---
 
-## Notes / Decisions to Finalize Early
+## Notes / Decisions Finalized
 
-- **Time zone strategy**: derive local date bucketing consistently.
-- **Amount representation**: store amounts as **integer rupiah (IDR)** to avoid floating issues.
-- **Savings modeling**: keep optional for MVP unless you want a dedicated workflow; can be added after transactions/transfers.
-- **Hosting (MVP)**: run locally only for now; deployment and persistence constraints can be revisited post-MVP.
+- **Database**: Using `sql.js` (pure JavaScript SQLite) for cross-platform compatibility
+- **Amount representation**: Store amounts as **integer rupiah (IDR)** to avoid floating issues
+- **Transfer modeling**: Two linked transactions with shared `transfer_id` (atomic creation)
+- **Balance calculation**: Derived from transaction ledger (not stored as fixed value)
+- **Time zone strategy**: Store ISO 8601 strings, bucket by date for monthly reports
+- **Savings modeling**: Optional in MVP, savings_buckets table ready for future use
 
 ---
 
 ## Definition of Done (MVP)
 
-- CRUD for wallets and categories
-- Record expenses/income/transfers
-- Monthly budgets per category with actual vs remaining
-- Dashboard shows:
+- [x] Database layer with all entities
+- [x] Data access layer (repositories) with full CRUD
+- [x] Comprehensive test coverage (153 tests passing)
+- [ ] CRUD API endpoints for wallets and categories
+- [ ] Record expenses/income/transfers via API
+- [ ] Monthly budgets per category with actual vs remaining
+- [ ] Dashboard API shows:
   - total income, total expense
   - money left to spend (income - expense)
   - current net worth
-  - basic trends + category breakdown
-- Desktop-first UI styled with Tailwind
-- API implemented only via Route Handlers
-- Tests exist for all logic/data-access/route handlers, with basic UI smoke coverage
+  - category breakdown
+- [ ] Desktop-first UI connected to API
+- [ ] API implemented only via Route Handlers
+- [ ] Tests exist for all logic/data-access/route handlers
 
 ---
+
+## Progress Summary
+
+| Phase                        | Status         | Tests     |
+| ---------------------------- | -------------- | --------- |
+| Phase 0 - Foundations        | ✅ Complete    | 24 tests  |
+| Phase 1 - Database Layer     | ✅ Complete    | 129 tests |
+| Phase 2 - API Route Handlers | 🔲 Not Started | -         |
+| Phase 3 - Wire Up UI         | 🔲 Not Started | -         |
+| Phase 4 - Hardening          | 🔲 Not Started | -         |
+
+**Total Tests**: 153 passing

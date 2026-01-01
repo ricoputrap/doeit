@@ -1,127 +1,261 @@
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Wallet,
+  PieChart,
+  BarChart3,
+  ArrowRight,
+  Plus,
+} from "lucide-react";
+import Link from "next/link";
+
 export default function DashboardPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-8">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">
-              Doeit Dashboard
-            </h1>
-            <p className="text-sm text-gray-600">Financial Overview</p>
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Financial overview for this month
+          </p>
         </div>
-      </header>
-
-      {/* Navigation */}
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex space-x-8">
-            <div className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 border-b-2 border-blue-500">
-              Dashboard
-            </div>
-            <a
-              href="/transactions"
-              className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300"
-            >
-              Transactions
-            </a>
-            <a
-              href="/wallets"
-              className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300"
-            >
-              Wallets
-            </a>
-            <a
-              href="/categories"
-              className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300"
-            >
-              Categories
-            </a>
-            <a
-              href="/budgets"
-              className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300"
-            >
-              Budgets
-            </a>
-          </div>
+        <div className="flex items-center space-x-2">
+          <Badge variant="outline" className="text-sm">
+            January 2025
+          </Badge>
         </div>
-      </nav>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <p className="text-sm font-medium text-gray-600 mb-2">
-              Total Income
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Income</CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">Rp 0</div>
+            <p className="text-xs text-muted-foreground">
+              <span className="text-green-600">+0%</span> from last month
             </p>
-            <p className="text-3xl font-bold text-blue-600">Rp 0</p>
-            <p className="text-sm text-gray-500 mt-2">This month</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <p className="text-sm font-medium text-gray-600 mb-2">
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
               Total Expenses
+            </CardTitle>
+            <TrendingDown className="h-4 w-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">Rp 0</div>
+            <p className="text-xs text-muted-foreground">
+              <span className="text-red-600">+0%</span> from last month
             </p>
-            <p className="text-3xl font-bold text-red-600">Rp 0</p>
-            <p className="text-sm text-gray-500 mt-2">This month</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <p className="text-sm font-medium text-gray-600 mb-2">Money Left</p>
-            <p className="text-3xl font-bold text-green-600">Rp 0</p>
-            <p className="text-sm text-gray-500 mt-2">Income - Expenses</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <p className="text-sm font-medium text-gray-600 mb-2">Net Worth</p>
-            <p className="text-3xl font-bold text-purple-600">Rp 0</p>
-            <p className="text-sm text-gray-500 mt-2">Total across wallets</p>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Money Left</CardTitle>
+            <DollarSign className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">Rp 0</div>
+            <p className="text-xs text-muted-foreground">
+              Income - Expenses this month
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Net Worth</CardTitle>
+            <Wallet className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">Rp 0</div>
+            <p className="text-xs text-muted-foreground">
+              Total across all wallets
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
-        {/* Charts Placeholder */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Spending Over Time
-            </h3>
-            <div className="h-64 flex items-center justify-center bg-gray-50 rounded">
-              <p className="text-gray-500">Chart coming soon...</p>
+      {/* Charts Section */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <BarChart3 className="h-5 w-5" />
+              <span>Spending Over Time</span>
+            </CardTitle>
+            <CardDescription>
+              Track your expenses throughout the month
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px] flex items-center justify-center bg-muted/50 rounded-lg">
+              <div className="text-center space-y-2">
+                <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto" />
+                <p className="text-sm text-muted-foreground">
+                  Chart visualization coming soon
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Add transactions to see your spending trends
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Spending by Category
-            </h3>
-            <div className="h-64 flex items-center justify-center bg-gray-50 rounded">
-              <p className="text-gray-500">Chart coming soon...</p>
-            </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* Recent Transactions Placeholder */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Recent Transactions
-            </h3>
-            <a
-              href="/transactions"
-              className="text-sm font-medium text-blue-600 hover:text-blue-700"
-            >
-              View all →
-            </a>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <PieChart className="h-5 w-5" />
+              <span>Spending by Category</span>
+            </CardTitle>
+            <CardDescription>See where your money goes</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px] flex items-center justify-center bg-muted/50 rounded-lg">
+              <div className="text-center space-y-2">
+                <PieChart className="h-12 w-12 text-muted-foreground mx-auto" />
+                <p className="text-sm text-muted-foreground">
+                  Category breakdown coming soon
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Create categories to organize expenses
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Transactions */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Recent Transactions</CardTitle>
+              <CardDescription>Your latest financial activity</CardDescription>
+            </div>
+            <Link href="/transactions">
+              <Button variant="outline" size="sm">
+                View all
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
           </div>
-          <div className="text-center py-12 bg-gray-50 rounded">
-            <p className="text-gray-500">No transactions yet</p>
-            <a
-              href="/transactions"
-              className="inline-block mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Add Transaction
-            </a>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <div className="rounded-full bg-muted p-3">
+              <Plus className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="font-semibold">No transactions yet</h3>
+              <p className="text-sm text-muted-foreground max-w-sm">
+                Start tracking your finances by adding your first transaction
+              </p>
+            </div>
+            <Link href="/transactions">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Transaction
+              </Button>
+            </Link>
           </div>
-        </div>
-      </main>
+        </CardContent>
+      </Card>
+
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+          <CardDescription>
+            Common tasks to manage your finances
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <Link href="/transactions" className="block">
+              <Button
+                variant="outline"
+                className="w-full justify-start h-auto p-4"
+              >
+                <div className="flex flex-col items-start space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <Plus className="h-4 w-4" />
+                    <span className="font-medium">Add Transaction</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    Record income or expense
+                  </span>
+                </div>
+              </Button>
+            </Link>
+            <Link href="/wallets" className="block">
+              <Button
+                variant="outline"
+                className="w-full justify-start h-auto p-4"
+              >
+                <div className="flex flex-col items-start space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <Wallet className="h-4 w-4" />
+                    <span className="font-medium">Manage Wallets</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    Add or edit accounts
+                  </span>
+                </div>
+              </Button>
+            </Link>
+            <Link href="/categories" className="block">
+              <Button
+                variant="outline"
+                className="w-full justify-start h-auto p-4"
+              >
+                <div className="flex flex-col items-start space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <PieChart className="h-4 w-4" />
+                    <span className="font-medium">Categories</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    Organize transactions
+                  </span>
+                </div>
+              </Button>
+            </Link>
+            <Link href="/budgets" className="block">
+              <Button
+                variant="outline"
+                className="w-full justify-start h-auto p-4"
+              >
+                <div className="flex flex-col items-start space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <TrendingUp className="h-4 w-4" />
+                    <span className="font-medium">Set Budget</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    Monthly spending limits
+                  </span>
+                </div>
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

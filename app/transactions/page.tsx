@@ -1,122 +1,300 @@
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  ArrowLeftRight,
+  Plus,
+  Filter,
+  Search,
+  MoreHorizontal,
+  TrendingUp,
+  TrendingDown,
+  ArrowRightLeft,
+  Wallet,
+} from "lucide-react";
+import Link from "next/link";
+
 export default function TransactionsPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-8">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Transactions</h1>
+          <p className="text-muted-foreground">
+            Track your income, expenses, and transfers
+          </p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" size="sm">
+            <Filter className="mr-2 h-4 w-4" />
+            Filter
+          </Button>
+          <Link href="/transactions/new">
+            <Button size="sm">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Transaction
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              This Month Income
+            </CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">Rp 0</div>
+            <p className="text-xs text-muted-foreground">+0% from last month</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              This Month Expenses
+            </CardTitle>
+            <TrendingDown className="h-4 w-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">Rp 0</div>
+            <p className="text-xs text-muted-foreground">+0% from last month</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Net Cashflow</CardTitle>
+            <ArrowRightLeft className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">Rp 0</div>
+            <p className="text-xs text-muted-foreground">Income - Expenses</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Search className="h-5 w-5" />
+            <span>Search & Filter</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Search</label>
+              <Input placeholder="Search transactions..." />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Type</label>
+              <Select>
+                <SelectTrigger>
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="income">Income</SelectItem>
+                  <SelectItem value="expense">Expense</SelectItem>
+                  <SelectItem value="transfer">Transfer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Wallet</label>
+              <Select>
+                <SelectTrigger>
+                  <SelectValue placeholder="All wallets" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Wallets</SelectItem>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="bank">Bank Account</SelectItem>
+                  <SelectItem value="ewallet">E-Wallet</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Period</label>
+              <Select>
+                <SelectTrigger>
+                  <SelectValue placeholder="This month" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="this-month">This Month</SelectItem>
+                  <SelectItem value="last-month">Last Month</SelectItem>
+                  <SelectItem value="last-3-months">Last 3 Months</SelectItem>
+                  <SelectItem value="this-year">This Year</SelectItem>
+                  <SelectItem value="custom">Custom Range</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Transactions List */}
+      <Card>
+        <CardHeader>
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Transactions</h1>
-            <p className="text-sm text-gray-600">
-              Track your income and expenses
-            </p>
-          </div>
-        </div>
-      </header>
-
-      {/* Navigation */}
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex space-x-8">
-            <a
-              href="/dashboard"
-              className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300"
-            >
-              Dashboard
-            </a>
-            <div className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 border-b-2 border-blue-500">
-              Transactions
-            </div>
-            <a
-              href="/wallets"
-              className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300"
-            >
-              Wallets
-            </a>
-            <a
-              href="/categories"
-              className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300"
-            >
-              Categories
-            </a>
-            <a
-              href="/budgets"
-              className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300"
-            >
-              Budgets
-            </a>
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Filter Bar Placeholder */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <div className="flex flex-wrap gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Date Range
-              </label>
-              <select className="border border-gray-300 rounded px-3 py-2 text-sm">
-                <option>This Month</option>
-                <option>Last Month</option>
-                <option>Last 3 Months</option>
-                <option>Custom Range</option>
-              </select>
+              <CardTitle>Transaction History</CardTitle>
+              <CardDescription>
+                Your recent financial transactions
+              </CardDescription>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Type
-              </label>
-              <select className="border border-gray-300 rounded px-3 py-2 text-sm">
-                <option>All</option>
-                <option>Income</option>
-                <option>Expense</option>
-                <option>Transfer</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Wallet
-              </label>
-              <select className="border border-gray-300 rounded px-3 py-2 text-sm">
-                <option>All Wallets</option>
-              </select>
-            </div>
-            <div className="flex items-end">
-              <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
-                Add Transaction
-              </button>
+            <div className="flex items-center space-x-2">
+              <Button variant="outline" size="sm">
+                Export
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>View Details</DropdownMenuItem>
+                  <DropdownMenuItem>Edit</DropdownMenuItem>
+                  <DropdownMenuItem>Delete</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
-        </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <div className="rounded-full bg-muted p-3">
+              <ArrowLeftRight className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="font-semibold">No transactions yet</h3>
+              <p className="text-sm text-muted-foreground max-w-sm">
+                Start tracking your finances by adding your first transaction
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Link href="/transactions/new?type=income">
+                <Button variant="outline" size="sm">
+                  <TrendingUp className="mr-2 h-4 w-4" />
+                  Add Income
+                </Button>
+              </Link>
+              <Link href="/transactions/new?type=expense">
+                <Button variant="outline" size="sm">
+                  <TrendingDown className="mr-2 h-4 w-4" />
+                  Add Expense
+                </Button>
+              </Link>
+              <Link href="/transactions/new?type=transfer">
+                <Button variant="outline" size="sm">
+                  <ArrowRightLeft className="mr-2 h-4 w-4" />
+                  Transfer
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Transactions List */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Transaction History
-            </h2>
-          </div>
-          <div className="text-center py-12">
-            <p className="text-gray-500 mb-4">No transactions yet</p>
-            <p className="text-sm text-gray-400 mb-6">
-              Start tracking your income and expenses
-            </p>
-            <div className="flex justify-center gap-3">
-              <button className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">
-                + Add Income
-              </button>
-              <button className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
-                + Add Expense
-              </button>
-              <button className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm">
-                + Transfer
-              </button>
+      {/* Quick Stats */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Wallet className="h-5 w-5" />
+              <span>Top Categories</span>
+            </CardTitle>
+            <CardDescription>Most active spending categories</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <span className="text-sm">No data yet</span>
+                </div>
+                <span className="text-sm font-medium">Rp 0</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <span className="text-sm">No data yet</span>
+                </div>
+                <span className="text-sm font-medium">Rp 0</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                  <span className="text-sm">No data yet</span>
+                </div>
+                <span className="text-sm font-medium">Rp 0</span>
+              </div>
             </div>
-          </div>
-        </div>
-      </main>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>
+              Latest transactions across all wallets
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="rounded-full bg-muted p-2">
+                  <Plus className="h-4 w-4" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <p className="text-sm font-medium">No recent activity</p>
+                  <p className="text-xs text-muted-foreground">
+                    Add transactions to see activity here
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

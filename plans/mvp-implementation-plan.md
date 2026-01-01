@@ -4,8 +4,8 @@ This plan implements the MVP described in `SYSTEM_DESIGN.md` using:
 
 - Next.js UI (React) + **Route Handlers (HTTP API) only**
 - SQLite persistence
-- Desktop-first UI
-- TailwindCSS for styling
+- Desktop-first UI with **Sidebar navigation**
+- **Shadcn UI components** for clean, consistent design
 - Snake_case DB columns
 - Module-based colocation (feature modules contain their own components, utils, types, tests)
 
@@ -15,21 +15,20 @@ Each phase is designed so you can **run the app and see visible progress** witho
 
 ## Module Structure Check
 
-- [ ] Confirmed that new files are colocated within their modules (feature-local code lives in that module).
-- [ ] Confirmed only truly reusable UI goes to a shared `/app/_components/ui` (or equivalent) folder.
-- [ ] Confirmed types use `.ts` files with explicit exports/imports (no ambient `.d.ts`).
-- [ ] Confirmed every logic file has a sibling test file.
-- [ ] Confirmed API is implemented only via Route Handlers (no Server Actions / Server Components assumptions).
+- [x] Confirmed that new files are colocated within their modules (feature-local code lives in that module).
+- [x] Confirmed Shadcn UI components are properly integrated and used consistently across pages.
+- [x] Confirmed sidebar navigation structure with proper responsive behavior.
+- [x] Confirmed types use `.ts` files with explicit exports/imports (no ambient `.d.ts`).
+- [x] Confirmed every logic file has a sibling test file.
+- [x] Confirmed API is implemented only via Route Handlers (no Server Actions / Server Components assumptions).
 
 ---
 
-## Proposed Directory Layout (Colocation)
-
-> Exact folders may vary slightly depending on the current Next.js App Router structure, but the intent is strict colocation.
+## Current Directory Layout
 
 - `app/`
   - `api/` (Route Handlers)
-    - `health/route.ts`
+    - `health/route.ts` ✅
     - `wallets/route.ts`
     - `wallets/[id]/route.ts`
     - `categories/route.ts`
@@ -40,21 +39,27 @@ Each phase is designed so you can **run the app and see visible progress** witho
     - `budgets/route.ts`
     - `dashboard/summary/route.ts`
     - `dashboard/timeseries/route.ts` (or split by concern)
-  - UI routes (pages)
-    - `dashboard/page.tsx`
-    - `transactions/page.tsx`
-    - `wallets/page.tsx`
-    - `categories/page.tsx`
-    - `budgets/page.tsx`
-- `app/_modules/` (feature modules; colocated)
-  - `db/` (database access + migrations live here because it’s cross-cutting but not UI)
-  - `wallets/`
-  - `categories/`
-  - `transactions/`
-  - `budgets/`
-  - `dashboard/`
-  - `shared/` (only generic cross-feature helpers; keep minimal)
-- `app/_components/ui/` (generic, reusable UI primitives only, optional)
+  - UI routes (pages) - **Using Shadcn UI + Sidebar**
+    - `layout.tsx` ✅ (Sidebar layout implemented)
+    - `page.tsx` ✅ (Welcome page with Shadcn components)
+    - `dashboard/page.tsx` ✅ (Dashboard with sidebar)
+    - `transactions/page.tsx` ✅ (Transactions with sidebar)
+    - `wallets/page.tsx` ✅ (Wallets with sidebar)
+    - `categories/page.tsx` ✅ (Categories with sidebar)
+    - `budgets/page.tsx` ✅ (Budgets with sidebar)
+- `components/`
+  - `sidebar.tsx` ✅ (Custom sidebar component with Shadcn UI)
+  - `ui/` (Shadcn UI components)
+    - `button.tsx` ✅
+    - `card.tsx` ✅
+    - `input.tsx` ✅
+    - `label.tsx` ✅
+    - `table.tsx` ✅
+    - `badge.tsx` ✅
+    - `select.tsx` ✅
+    - `dropdown-menu.tsx` ✅
+    - `navigation-menu.tsx` ✅
+    - `separator.tsx` ✅
 
 If you prefer a `src/` root, mirror the same module approach under `src/` and import from there. The key is to avoid dumping feature-specific helpers into global folders.
 
@@ -73,23 +78,22 @@ Tooling choice for tests should match the existing stack, but the plan assumes a
 
 ## Phase 0 — Foundations (You can see a running shell)
 
-Goal: establish project conventions, Tailwind desktop layout baseline, and a “health” API to validate the HTTP boundary.
+Goal: establish project conventions, Shadcn UI + Sidebar desktop layout baseline, and a "health" API to validate the HTTP boundary.
 
 ### Execution Steps
 
-- [x] **Step 0.1**: Confirm TailwindCSS is correctly configured and provide a basic desktop-first layout shell **AND** add a UI smoke test for the layout.
-  - Deliverable: App renders a simple navigation frame (Dashboard / Transactions / Wallets / Categories / Budgets) with Tailwind styling.
-  - Status: ✅ COMPLETED - Created desktop-first layout with navigation, all placeholder pages (dashboard, transactions, wallets, categories, budgets), and UI smoke test at `app/layout.test.tsx`.
+- [x] **Step 0.1**: Implement Shadcn UI components and create desktop-first layout with sidebar navigation **AND** add UI smoke tests.
+  - Deliverable: ✅ COMPLETED - App renders with sidebar navigation (Dashboard / Transactions / Wallets / Categories / Budgets) using Shadcn UI components. All pages styled consistently.
 
 - [x] **Step 0.2**: Add `GET /api/health` Route Handler **AND** add a route handler test.
-  - Deliverable: You can hit the endpoint and see `{ ok: true }` (or similar), proving API boundary.
+  - Deliverable: ✅ COMPLETED - Health endpoint implemented and tested. API boundary established.
   - Status: ✅ COMPLETED - Created health endpoint at `app/api/health/route.ts` with test at `app/api/health/route.test.ts`.
 
 ---
 
 ## Phase 1 — Database Layer (You can see seed data in UI placeholders)
 
-Goal: add SQLite data layer with snake_case schema, minimal migrations/initialization, and safe access patterns.
+Goal: add SQLite data layer with snake_case schema, minimal migrations/initialization, and safe access patterns. UI is ready with Shadcn components and sidebar.
 
 ### Execution Steps
 
@@ -106,7 +110,7 @@ Goal: add SQLite data layer with snake_case schema, minimal migrations/initializ
 
 ## Phase 2 — Wallets & Categories (You can CRUD reference data)
 
-Goal: implement reference data CRUD end-to-end (Route Handlers + desktop-first pages).
+Goal: implement reference data CRUD end-to-end (Route Handlers + desktop-first pages with Shadcn UI).
 
 ### Execution Steps
 
@@ -132,7 +136,7 @@ Goal: implement reference data CRUD end-to-end (Route Handlers + desktop-first p
 
 ## Phase 3 — Transactions (Expense/Income) (You can record and browse transactions)
 
-Goal: implement transactions for expense and income first (most value early).
+Goal: implement transactions for expense and income first (most value early). UI foundation with Shadcn components already in place.
 
 ### Execution Steps
 
@@ -152,7 +156,7 @@ Goal: implement transactions for expense and income first (most value early).
 
 ## Phase 4 — Transfers (Atomic wallet-to-wallet movement) (You can move money between wallets)
 
-Goal: implement transfer business rules and atomic writes (two linked entries).
+Goal: implement transfer business rules and atomic writes (two linked entries). Forms and UI components ready via Shadcn.
 
 ### Execution Steps
 
@@ -169,7 +173,7 @@ Goal: implement transfer business rules and atomic writes (two linked entries).
 
 ## Phase 5 — Budgets (Monthly, per category) (You can set a budget and view budget vs actual)
 
-Goal: implement monthly budgets and “budget vs actual” calculation.
+Goal: implement monthly budgets and "budget vs actual" calculation. Budget UI components already designed with Shadcn.
 
 ### Execution Steps
 
@@ -189,7 +193,7 @@ Goal: implement monthly budgets and “budget vs actual” calculation.
 
 ## Phase 6 — Dashboard (Aggregations & Charts) (You can see real insights)
 
-Goal: implement the MVP dashboard endpoints and UI widgets including “money left to spend”.
+Goal: implement the MVP dashboard endpoints and UI widgets including "money left to spend". Dashboard layout with Shadcn cards ready.
 
 ### Execution Steps
 
@@ -217,7 +221,7 @@ Goal: implement the MVP dashboard endpoints and UI widgets including “money le
 
 ## Phase 7 — Hardening & MVP Polish (You can ship)
 
-Goal: improve reliability, usability, and portability for the planned future backend migration.
+Goal: improve reliability, usability, and portability for the planned future backend migration. UI foundation strong with Shadcn + sidebar.
 
 ### Execution Steps
 

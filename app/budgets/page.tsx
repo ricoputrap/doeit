@@ -1,170 +1,428 @@
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  PiggyBank,
+  Plus,
+  MoreHorizontal,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Target,
+  AlertTriangle,
+  CheckCircle,
+  ArrowUpDown,
+  Calendar,
+  BarChart3,
+} from "lucide-react";
+import Link from "next/link";
+
 export default function BudgetsPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-8">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Budgets</h1>
-            <p className="text-sm text-gray-600">Manage Monthly Budgets</p>
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Budgets</h1>
+          <p className="text-muted-foreground">
+            Set monthly spending limits and track your progress
+          </p>
         </div>
-      </header>
-
-      {/* Navigation */}
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex space-x-8">
-            <a
-              href="/dashboard"
-              className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300"
-            >
-              Dashboard
-            </a>
-            <a
-              href="/transactions"
-              className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300"
-            >
-              Transactions
-            </a>
-            <a
-              href="/wallets"
-              className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300"
-            >
-              Wallets
-            </a>
-            <a
-              href="/categories"
-              className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300"
-            >
-              Categories
-            </a>
-            <div className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 border-b-2 border-blue-500">
-              Budgets
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Month Selector */}
-        <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Current Month: January 2025
-            </h2>
-            <div className="flex space-x-2">
-              <button className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200">
-                ← Previous
-              </button>
-              <button className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200">
-                Next →
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Budget Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <p className="text-sm font-medium text-gray-600 mb-2">
-              Total Budget
-            </p>
-            <p className="text-3xl font-bold text-blue-600">Rp 0</p>
-            <p className="text-sm text-gray-500 mt-2">This month</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <p className="text-sm font-medium text-gray-600 mb-2">
-              Total Spent
-            </p>
-            <p className="text-3xl font-bold text-red-600">Rp 0</p>
-            <p className="text-sm text-gray-500 mt-2">This month</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <p className="text-sm font-medium text-gray-600 mb-2">Remaining</p>
-            <p className="text-3xl font-bold text-green-600">Rp 0</p>
-            <p className="text-sm text-gray-500 mt-2">Budget left</p>
-          </div>
-        </div>
-
-        {/* Budget List */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Category Budgets
-            </h3>
-            <button className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700">
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" size="sm">
+            <Calendar className="mr-2 h-4 w-4" />
+            January 2025
+          </Button>
+          <Link href="/budgets/new">
+            <Button size="sm">
+              <Plus className="mr-2 h-4 w-4" />
               Add Budget
-            </button>
-          </div>
-
-          {/* Budget Table */}
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Category
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Budget Limit
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Spent
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Remaining
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Progress
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
-                    <div className="text-gray-500">
-                      <p className="mb-4">No budgets set for this month</p>
-                      <button className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700">
-                        Create Your First Budget
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+            </Button>
+          </Link>
         </div>
+      </div>
 
-        {/* Budget Tips */}
-        <div className="mt-6 bg-blue-50 p-6 rounded-lg">
-          <h3 className="text-lg font-semibold text-blue-900 mb-3">
-            💡 Budget Tips
-          </h3>
-          <ul className="space-y-2 text-blue-800">
-            <li className="flex items-start">
-              <span className="w-2 h-2 bg-blue-500 rounded-full mr-3 mt-2"></span>
-              Start with your essential categories (food, transport, housing)
-            </li>
-            <li className="flex items-start">
-              <span className="w-2 h-2 bg-blue-500 rounded-full mr-3 mt-2"></span>
-              Review and adjust your budgets monthly based on actual spending
-            </li>
-            <li className="flex items-start">
-              <span className="w-2 h-2 bg-blue-500 rounded-full mr-3 mt-2"></span>
-              Set realistic limits that you can actually stick to
-            </li>
-            <li className="flex items-start">
-              <span className="w-2 h-2 bg-blue-500 rounded-full mr-3 mt-2"></span>
-              Use the progress bar to track how close you are to your limits
-            </li>
-          </ul>
-        </div>
-      </main>
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Budget</CardTitle>
+            <PiggyBank className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">Rp 0</div>
+            <p className="text-xs text-muted-foreground">This month</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
+            <TrendingDown className="h-4 w-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">Rp 0</div>
+            <p className="text-xs text-muted-foreground">Budget used</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Remaining</CardTitle>
+            <Target className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">Rp 0</div>
+            <p className="text-xs text-muted-foreground">Budget left</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Categories</CardTitle>
+            <BarChart3 className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">0</div>
+            <p className="text-xs text-muted-foreground">Active budgets</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Month Navigation */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Calendar className="h-5 w-5" />
+            <span>Month Selection</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Button variant="outline" size="sm">
+                ← Previous
+              </Button>
+              <div className="text-center">
+                <h3 className="font-semibold">January 2025</h3>
+                <p className="text-sm text-muted-foreground">Current month</p>
+              </div>
+              <Button variant="outline" size="sm">
+                Next →
+              </Button>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Select defaultValue="2025-01">
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select month" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="2024-12">December 2024</SelectItem>
+                  <SelectItem value="2025-01">January 2025</SelectItem>
+                  <SelectItem value="2025-02">February 2025</SelectItem>
+                  <SelectItem value="2025-03">March 2025</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Quick Add Budgets */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Add Budgets</CardTitle>
+          <CardDescription>
+            Set up common budget categories to get started
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <Link href="/budgets/new?category=food" className="block">
+              <Button
+                variant="outline"
+                className="w-full justify-start h-auto p-4"
+              >
+                <div className="flex flex-col items-start space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <DollarSign className="h-4 w-4" />
+                    <span className="font-medium">Food & Dining</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    Set limit for meals
+                  </span>
+                </div>
+              </Button>
+            </Link>
+            <Link href="/budgets/new?category=transport" className="block">
+              <Button
+                variant="outline"
+                className="w-full justify-start h-auto p-4"
+              >
+                <div className="flex flex-col items-start space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <TrendingUp className="h-4 w-4" />
+                    <span className="font-medium">Transportation</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    Fuel, public transport
+                  </span>
+                </div>
+              </Button>
+            </Link>
+            <Link href="/budgets/new?category=entertainment" className="block">
+              <Button
+                variant="outline"
+                className="w-full justify-start h-auto p-4"
+              >
+                <div className="flex flex-col items-start space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <PiggyBank className="h-4 w-4" />
+                    <span className="font-medium">Entertainment</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    Movies, hobbies
+                  </span>
+                </div>
+              </Button>
+            </Link>
+            <Link href="/budgets/new?category=shopping" className="block">
+              <Button
+                variant="outline"
+                className="w-full justify-start h-auto p-4"
+              >
+                <div className="flex flex-col items-start space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <Target className="h-4 w-4" />
+                    <span className="font-medium">Shopping</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    Clothes, purchases
+                  </span>
+                </div>
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Budget List */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Category Budgets</CardTitle>
+              <CardDescription>
+                Track spending against your monthly limits
+              </CardDescription>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button variant="outline" size="sm">
+                <ArrowUpDown className="mr-2 h-4 w-4" />
+                Sort
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>Export Budgets</DropdownMenuItem>
+                  <DropdownMenuItem>Copy from Last Month</DropdownMenuItem>
+                  <DropdownMenuItem>Reset All</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <div className="rounded-full bg-muted p-3">
+              <PiggyBank className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="font-semibold">No budgets set yet</h3>
+              <p className="text-sm text-muted-foreground max-w-sm">
+                Create your first budget to start tracking your spending and
+                stay within your limits
+              </p>
+            </div>
+            <Link href="/budgets/new">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Your First Budget
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Budget Progress Overview */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <AlertTriangle className="h-5 w-5" />
+              <span>Budget Alerts</span>
+            </CardTitle>
+            <CardDescription>Categories approaching limits</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  <div>
+                    <p className="font-medium">No alerts yet</p>
+                    <p className="text-xs text-muted-foreground">
+                      Set budgets to get started
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <CheckCircle className="h-5 w-5" />
+              <span>Budget Success</span>
+            </CardTitle>
+            <CardDescription>Categories under budget</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <div>
+                    <p className="font-medium">No data yet</p>
+                    <p className="text-xs text-muted-foreground">
+                      Create budgets to track success
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Budget Tips */}
+      <Card>
+        <CardHeader>
+          <CardTitle>💡 Budget Management Tips</CardTitle>
+          <CardDescription>
+            Make the most of your budget tracking
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-4">
+              <h4 className="font-semibold">Getting Started</h4>
+              <div className="space-y-3">
+                <div className="flex items-start space-x-3">
+                  <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+                    1
+                  </div>
+                  <div>
+                    <p className="font-medium">Start with Essentials</p>
+                    <p className="text-sm text-muted-foreground">
+                      Set budgets for must-have categories first
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+                    2
+                  </div>
+                  <div>
+                    <p className="font-medium">Be Realistic</p>
+                    <p className="text-sm text-muted-foreground">
+                      Set achievable limits based on your actual spending
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+                    3
+                  </div>
+                  <div>
+                    <p className="font-medium">Review Monthly</p>
+                    <p className="text-sm text-muted-foreground">
+                      Adjust budgets based on your spending patterns
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="font-semibold">Pro Tips</h4>
+              <div className="space-y-3">
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                  <div>
+                    <p className="font-medium">Use the 50/30/20 Rule</p>
+                    <p className="text-sm text-muted-foreground">
+                      50% needs, 30% wants, 20% savings
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
+                  <div>
+                    <p className="font-medium">Set Buffer Limits</p>
+                    <p className="text-sm text-muted-foreground">
+                      Add 10-15% extra for unexpected expenses
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full mt-2"></div>
+                  <div>
+                    <p className="font-medium">Track Consistently</p>
+                    <p className="text-sm text-muted-foreground">
+                      Update your transactions regularly for accuracy
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

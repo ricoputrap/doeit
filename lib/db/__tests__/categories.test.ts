@@ -1,3 +1,8 @@
+/**
+ * Tests for category repository functions
+ * Tests all category-related database operations using Drizzle ORM
+ */
+
 import {
   describe,
   it,
@@ -7,24 +12,9 @@ import {
   vi,
   beforeAll,
 } from "vitest";
-import initSqlJs, { type Database as SqlJsDatabase } from "sql.js";
-
-// Create an in-memory test database
-let testDb: SqlJsDatabase;
-let SQL: Awaited<ReturnType<typeof initSqlJs>>;
-
-// Mock the database module before importing repositories
-vi.mock("../index", () => ({
-  getDatabase: () => testDb,
-  closeDatabase: () => {
-    if (testDb) testDb.close();
-  },
-  saveDatabase: () => {
-    // No-op for tests
-  },
-}));
-
-// Import after mocking
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import Database from "better-sqlite3";
+import { categoriesTable, transactionsTable, walletsTable } from "../schema";
 import {
   getAllCategories,
   getCategoriesByType,
@@ -39,77 +29,82 @@ import {
   countCategories,
   countCategoriesByType,
 } from "../repositories/categories";
+import { eq } from "drizzle-orm";
 
-async function setupTestDatabase() {
-  if (!SQL) {
-    SQL = await initSqlJs();
-  }
-
-  if (testDb) {
-    testDb.close();
-  }
-
-  testDb = new SQL.Database();
-  testDb.run("PRAGMA foreign_keys = ON");
-
-  // Create categories table
-  testDb.run(`
-    CREATE TABLE IF NOT EXISTS categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL CHECK (type IN ('expense', 'income')),
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      UNIQUE(name, type)
-    )
-  `);
-
-  // Create wallets table (needed for transactions)
-  testDb.run(`
-    CREATE TABLE IF NOT EXISTS wallets (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    )
-  `);
-
-  // Create transactions table for spent calculation tests
-  testDb.run(`
-    CREATE TABLE IF NOT EXISTS transactions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT NOT NULL CHECK (type IN ('expense', 'income', 'transfer', 'savings')),
-      amount INTEGER NOT NULL,
-      date TEXT NOT NULL,
-      note TEXT,
-      wallet_id INTEGER NOT NULL,
-      category_id INTEGER,
-      transfer_id TEXT,
-      savings_bucket_id INTEGER,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (wallet_id) REFERENCES wallets(id) ON DELETE RESTRICT,
-      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT
-    )
-  `);
-
-  // Create a test wallet for transactions
-  testDb.run(
-    `INSERT INTO wallets (name, created_at, updated_at) VALUES ('Test Wallet', datetime('now'), datetime('now'))`,
-  );
-}
+// Mock the drizzle module before importing repositories
+vi.mock("../drizzle", () => ({
+  db: {} as any, // Will be replaced in tests
+}));
 
 describe("Category Repository", () => {
-  beforeAll(async () => {
-    SQL = await initSqlJs();
-  });
+  let sqlite: Database;
+  let testDb: any;
+  let testWalletId: number;
 
-  beforeEach(async () => {
-    await setupTestDatabase();
+  beforeEach(() => {
+    // Create in-memory SQLite database
+    sqlite = new Database(":memory:");
+    testDb = drizzle(sqlite);
+
+    // Mock the global db module
+    vi.doMock("../drizzle", () => ({
+      db: testDb,
+    }));
+
+    // Create tables
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('expense', 'income')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(name, type)
+      )
+    `);
+
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS wallets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL CHECK (type IN ('expense', 'income', 'transfer', 'savings')),
+        amount INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        note TEXT,
+        wallet_id INTEGER NOT NULL,
+        category_id INTEGER,
+        transfer_id TEXT,
+        savings_bucket_id INTEGER,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (wallet_id) REFERENCES wallets(id) ON DELETE RESTRICT,
+        FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT
+      )
+    `);
+
+    // Create a test wallet for transactions
+    const result = sqlite.exec(`
+      INSERT INTO wallets (name, created_at, updated_at)
+      VALUES ('Test Wallet', datetime('now'), datetime('now'))
+    `);
+
+    // Get the inserted wallet ID
+    const walletResult = sqlite.exec("SELECT last_insert_rowid() as id");
+    testWalletId = walletResult[0]?.values[0]?.[0] || 1;
   });
 
   afterAll(() => {
-    if (testDb) testDb.close();
+    if (sqlite) {
+      sqlite.close();
+    }
   });
 
   describe("createCategory", () => {
@@ -295,11 +290,13 @@ describe("Category Repository", () => {
       const category = createCategory({ name: "Food", type: "expense" });
 
       // Create a transaction for this category
-      testDb.run(
-        `INSERT INTO transactions (type, amount, date, wallet_id, category_id, created_at, updated_at)
-         VALUES ('expense', 50000, '2024-01-01', 1, ?, datetime('now'), datetime('now'))`,
-        [category.id],
-      );
+      testDb.insert(transactionsTable).values({
+        type: "expense",
+        amount: 50000,
+        date: "2024-01-01",
+        wallet_id: testWalletId,
+        category_id: category.id,
+      });
 
       expect(() => deleteCategory(category.id)).toThrow();
     });
@@ -359,17 +356,22 @@ describe("Category Repository", () => {
     it("should return total spent for category in date range", () => {
       const category = createCategory({ name: "Food", type: "expense" });
 
-      testDb.run(
-        `INSERT INTO transactions (type, amount, date, wallet_id, category_id, created_at, updated_at)
-         VALUES ('expense', 50000, '2024-01-15', 1, ?, datetime('now'), datetime('now'))`,
-        [category.id],
-      );
-
-      testDb.run(
-        `INSERT INTO transactions (type, amount, date, wallet_id, category_id, created_at, updated_at)
-         VALUES ('expense', 30000, '2024-01-20', 1, ?, datetime('now'), datetime('now'))`,
-        [category.id],
-      );
+      testDb.insert(transactionsTable).values([
+        {
+          type: "expense",
+          amount: 50000,
+          date: "2024-01-15",
+          wallet_id: testWalletId,
+          category_id: category.id,
+        },
+        {
+          type: "expense",
+          amount: 30000,
+          date: "2024-01-20",
+          wallet_id: testWalletId,
+          category_id: category.id,
+        },
+      ]);
 
       const spent = getCategorySpent(category.id, "2024-01-01", "2024-02-01");
 
@@ -379,17 +381,22 @@ describe("Category Repository", () => {
     it("should only include transactions within date range", () => {
       const category = createCategory({ name: "Food", type: "expense" });
 
-      testDb.run(
-        `INSERT INTO transactions (type, amount, date, wallet_id, category_id, created_at, updated_at)
-         VALUES ('expense', 50000, '2024-01-15', 1, ?, datetime('now'), datetime('now'))`,
-        [category.id],
-      );
-
-      testDb.run(
-        `INSERT INTO transactions (type, amount, date, wallet_id, category_id, created_at, updated_at)
-         VALUES ('expense', 30000, '2024-02-15', 1, ?, datetime('now'), datetime('now'))`,
-        [category.id],
-      );
+      testDb.insert(transactionsTable).values([
+        {
+          type: "expense",
+          amount: 50000,
+          date: "2024-01-15",
+          wallet_id: testWalletId,
+          category_id: category.id,
+        },
+        {
+          type: "expense",
+          amount: 30000,
+          date: "2024-02-15",
+          wallet_id: testWalletId,
+          category_id: category.id,
+        },
+      ]);
 
       const spent = getCategorySpent(category.id, "2024-01-01", "2024-02-01");
 
@@ -404,18 +411,22 @@ describe("Category Repository", () => {
       createCategory({ name: "Salary", type: "income" });
 
       // Add expenses to food category
-      testDb.run(
-        `INSERT INTO transactions (type, amount, date, wallet_id, category_id, created_at, updated_at)
-         VALUES ('expense', 50000, '2024-01-15', 1, ?, datetime('now'), datetime('now'))`,
-        [food.id],
-      );
+      testDb.insert(transactionsTable).values({
+        type: "expense",
+        amount: 50000,
+        date: "2024-01-15",
+        wallet_id: testWalletId,
+        category_id: food.id,
+      });
 
       // Add expenses to transport category
-      testDb.run(
-        `INSERT INTO transactions (type, amount, date, wallet_id, category_id, created_at, updated_at)
-         VALUES ('expense', 20000, '2024-01-10', 1, ?, datetime('now'), datetime('now'))`,
-        [transport.id],
-      );
+      testDb.insert(transactionsTable).values({
+        type: "expense",
+        amount: 20000,
+        date: "2024-01-10",
+        wallet_id: testWalletId,
+        category_id: transport.id,
+      });
 
       const categoriesWithSpent = getCategoriesWithSpent(
         "2024-01-01",

@@ -7,24 +7,9 @@ import {
   vi,
   beforeAll,
 } from "vitest";
-import initSqlJs, { type Database as SqlJsDatabase } from "sql.js";
-
-// Create an in-memory test database
-let testDb: SqlJsDatabase;
-let SQL: Awaited<ReturnType<typeof initSqlJs>>;
-
-// Mock the database module before importing repositories
-vi.mock("../index", () => ({
-  getDatabase: () => testDb,
-  closeDatabase: () => {
-    if (testDb) testDb.close();
-  },
-  saveDatabase: () => {
-    // No-op for tests
-  },
-}));
-
-// Import after mocking
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import Database from "better-sqlite3";
+import { walletsTable, transactionsTable } from "../schema";
 import {
   getAllWallets,
   getWalletById,
@@ -38,58 +23,131 @@ import {
   countWallets,
 } from "../repositories/wallets";
 
-async function setupTestDatabase() {
-  if (!SQL) {
-    SQL = await initSqlJs();
-  }
+// Mock the drizzle module before importing repositories
+vi.mock("../drizzle", () => ({
+  db: {
+    select: vi.fn(),
+    insert: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    execute: vi.fn(),
+  },
+  dbConfig: {
+    path: ":memory:",
+    isConnected: () => true,
+  },
+  getDatabaseSync: () => ({
+    select: vi.fn(),
+    insert: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    execute: vi.fn(),
+  }),
+  initializeDatabase: async () => ({
+    select: vi.fn(),
+    insert: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    execute: vi.fn(),
+  }),
+  closeDatabase: () => {},
+  saveDatabase: () => {},
+  isDatabaseInitialized: () => true,
+}));
 
-  if (testDb) {
-    testDb.close();
-  }
-
-  testDb = new SQL.Database();
-  testDb.run("PRAGMA foreign_keys = ON");
-
-  // Create wallets table
-  testDb.run(`
-    CREATE TABLE IF NOT EXISTS wallets (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    )
-  `);
-
-  // Create transactions table for balance tests
-  testDb.run(`
-    CREATE TABLE IF NOT EXISTS transactions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT NOT NULL CHECK (type IN ('expense', 'income', 'transfer', 'savings')),
-      amount INTEGER NOT NULL,
-      date TEXT NOT NULL,
-      note TEXT,
-      wallet_id INTEGER NOT NULL,
-      category_id INTEGER,
-      transfer_id TEXT,
-      savings_bucket_id INTEGER,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (wallet_id) REFERENCES wallets(id) ON DELETE RESTRICT
-    )
-  `);
-}
+vi.mock("../index", () => ({
+  db: {
+    select: vi.fn(),
+    insert: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    execute: vi.fn(),
+  },
+  getDatabase: () => ({
+    select: vi.fn(),
+    insert: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    execute: vi.fn(),
+  }),
+  closeDatabase: () => {},
+  saveDatabase: () => {},
+  initializeDatabase: async () => ({
+    select: vi.fn(),
+    insert: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    execute: vi.fn(),
+  }),
+  getDatabasePath: () => ":memory:",
+  isDatabaseInitialized: () => true,
+}));
 
 describe("Wallet Repository", () => {
-  beforeAll(async () => {
-    SQL = await initSqlJs();
-  });
+  let sqlite: Database;
+  let testDb: any;
 
-  beforeEach(async () => {
-    await setupTestDatabase();
+  beforeEach(() => {
+    // Create in-memory SQLite database
+    sqlite = new Database(":memory:");
+    testDb = drizzle(sqlite);
+
+    // Mock the global db module with all necessary exports
+    vi.doMock("../drizzle", () => ({
+      db: testDb,
+      dbConfig: {
+        path: ":memory:",
+        isConnected: () => true,
+      },
+      getDatabaseSync: () => testDb,
+      initializeDatabase: async () => testDb,
+      closeDatabase: () => {},
+      saveDatabase: () => {},
+      isDatabaseInitialized: () => true,
+    }));
+
+    vi.doMock("../index", () => ({
+      db: testDb,
+      getDatabase: () => testDb,
+      closeDatabase: () => {},
+      saveDatabase: () => {},
+      initializeDatabase: async () => testDb,
+      getDatabasePath: () => ":memory:",
+      isDatabaseInitialized: () => true,
+    }));
+
+    // Create tables
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS wallets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL CHECK (type IN ('expense', 'income', 'transfer', 'savings')),
+        amount INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        note TEXT,
+        wallet_id INTEGER NOT NULL,
+        category_id INTEGER,
+        transfer_id TEXT,
+        savings_bucket_id INTEGER,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (wallet_id) REFERENCES wallets(id) ON DELETE RESTRICT
+      )
+    `);
   });
 
   afterAll(() => {
-    if (testDb) testDb.close();
+    if (sqlite) {
+      sqlite.close();
+    }
   });
 
   describe("createWallet", () => {
@@ -212,11 +270,12 @@ describe("Wallet Repository", () => {
       const wallet = createWallet({ name: "Cash" });
 
       // Create a transaction for this wallet
-      testDb.run(
-        `INSERT INTO transactions (type, amount, date, wallet_id, created_at, updated_at)
-         VALUES ('income', 100000, '2024-01-01', ?, datetime('now'), datetime('now'))`,
-        [wallet.id],
-      );
+      testDb.insert(transactionsTable).values({
+        type: "income",
+        amount: 100000,
+        date: "2024-01-01",
+        wallet_id: wallet.id,
+      });
 
       expect(() => deleteWallet(wallet.id)).toThrow();
     });
@@ -258,11 +317,13 @@ describe("Wallet Repository", () => {
     it("should calculate balance correctly with income", () => {
       const wallet = createWallet({ name: "Cash" });
 
-      testDb.run(
-        `INSERT INTO transactions (type, amount, date, wallet_id, created_at, updated_at)
-         VALUES ('income', 100000, '2024-01-01', ?, datetime('now'), datetime('now'))`,
-        [wallet.id],
-      );
+      // Insert income transaction directly for testing
+      testDb.insert(transactionsTable).values({
+        type: "income",
+        amount: 100000,
+        date: "2024-01-01",
+        wallet_id: wallet.id,
+      });
 
       expect(getWalletBalance(wallet.id)).toBe(100000);
     });
@@ -270,17 +331,21 @@ describe("Wallet Repository", () => {
     it("should calculate balance correctly with expenses", () => {
       const wallet = createWallet({ name: "Cash" });
 
-      testDb.run(
-        `INSERT INTO transactions (type, amount, date, wallet_id, created_at, updated_at)
-         VALUES ('income', 100000, '2024-01-01', ?, datetime('now'), datetime('now'))`,
-        [wallet.id],
-      );
-
-      testDb.run(
-        `INSERT INTO transactions (type, amount, date, wallet_id, created_at, updated_at)
-         VALUES ('expense', 30000, '2024-01-02', ?, datetime('now'), datetime('now'))`,
-        [wallet.id],
-      );
+      // Insert income and expense transactions directly for testing
+      testDb.insert(transactionsTable).values([
+        {
+          type: "income",
+          amount: 100000,
+          date: "2024-01-01",
+          wallet_id: wallet.id,
+        },
+        {
+          type: "expense",
+          amount: 30000,
+          date: "2024-01-02",
+          wallet_id: wallet.id,
+        },
+      ]);
 
       expect(getWalletBalance(wallet.id)).toBe(70000);
     });
@@ -292,24 +357,28 @@ describe("Wallet Repository", () => {
       const wallet2 = createWallet({ name: "Bank" });
 
       // Add income to wallet1
-      testDb.run(
-        `INSERT INTO transactions (type, amount, date, wallet_id, created_at, updated_at)
-         VALUES ('income', 100000, '2024-01-01', ?, datetime('now'), datetime('now'))`,
-        [wallet1.id],
-      );
+      testDb.insert(transactionsTable).values({
+        type: "income",
+        amount: 100000,
+        date: "2024-01-01",
+        wallet_id: wallet1.id,
+      });
 
       // Add income and expense to wallet2
-      testDb.run(
-        `INSERT INTO transactions (type, amount, date, wallet_id, created_at, updated_at)
-         VALUES ('income', 200000, '2024-01-01', ?, datetime('now'), datetime('now'))`,
-        [wallet2.id],
-      );
-
-      testDb.run(
-        `INSERT INTO transactions (type, amount, date, wallet_id, created_at, updated_at)
-         VALUES ('expense', 50000, '2024-01-02', ?, datetime('now'), datetime('now'))`,
-        [wallet2.id],
-      );
+      testDb.insert(transactionsTable).values([
+        {
+          type: "income",
+          amount: 200000,
+          date: "2024-01-01",
+          wallet_id: wallet2.id,
+        },
+        {
+          type: "expense",
+          amount: 50000,
+          date: "2024-01-02",
+          wallet_id: wallet2.id,
+        },
+      ]);
 
       const walletsWithBalances = getAllWalletsWithBalances();
 

@@ -3,14 +3,7 @@
  * Tests the database seeding functionality for default categories
  */
 
-import {
-  describe,
-  it,
-  expect,
-  beforeEach,
-  afterAll,
-  vi,
-} from "vitest";
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
 import { categoriesTable } from "../schema";
@@ -23,11 +16,6 @@ import {
 } from "../seed";
 import { eq } from "drizzle-orm";
 
-// Mock the drizzle module before importing
-vi.mock("../drizzle", () => ({
-  db: {} as any, // Will be replaced in tests
-}));
-
 describe("Seed Data Utilities", () => {
   let sqlite: Database;
   let testDb: any;
@@ -37,9 +25,28 @@ describe("Seed Data Utilities", () => {
     sqlite = new Database(":memory:");
     testDb = drizzle(sqlite);
 
-    // Mock the global db module
+    // Mock the global db module with all necessary exports
     vi.doMock("../drizzle", () => ({
       db: testDb,
+      dbConfig: {
+        path: ":memory:",
+        isConnected: () => true,
+      },
+      getDatabaseSync: () => testDb,
+      initializeDatabase: async () => testDb,
+      closeDatabase: () => {},
+      saveDatabase: () => {},
+      isDatabaseInitialized: () => true,
+    }));
+
+    vi.doMock("../index", () => ({
+      db: testDb,
+      getDatabase: () => testDb,
+      closeDatabase: () => {},
+      saveDatabase: () => {},
+      initializeDatabase: async () => testDb,
+      getDatabasePath: () => ":memory:",
+      isDatabaseInitialized: () => true,
     }));
   });
 

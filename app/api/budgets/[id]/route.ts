@@ -1,6 +1,3 @@
-doeit/app/api/budgets/[id]/route.ts
-```
-```typescript
 import { NextRequest } from "next/server";
 import { ensureDatabase } from "@/lib/db/init";
 import {
@@ -47,10 +44,7 @@ export async function GET(
     return Response.json(budget);
   } catch (error) {
     console.error("Error fetching budget:", error);
-    return Response.json(
-      { error: "Failed to fetch budget" },
-      { status: 500 },
-    );
+    return Response.json({ error: "Failed to fetch budget" }, { status: 500 });
   }
 }
 
@@ -77,7 +71,11 @@ export async function PUT(
 
     // Validate input
     if (limit_amount !== undefined) {
-      if (typeof limit_amount !== "number" || isNaN(limit_amount) || limit_amount < 0) {
+      if (
+        typeof limit_amount !== "number" ||
+        isNaN(limit_amount) ||
+        limit_amount < 0
+      ) {
         return Response.json(
           { error: "limit_amount must be a non-negative number" },
           { status: 400 },
@@ -94,7 +92,9 @@ export async function PUT(
     }
 
     const updatedBudget = updateBudget(id, {
-      ...(limit_amount !== undefined && { limit_amount: Math.round(limit_amount) }),
+      ...(limit_amount !== undefined && {
+        limit_amount: Math.round(limit_amount),
+      }),
     });
 
     if (!updatedBudget) {
@@ -104,10 +104,7 @@ export async function PUT(
     return Response.json(updatedBudget);
   } catch (error: any) {
     console.error("Error updating budget:", error);
-    return Response.json(
-      { error: "Failed to update budget" },
-      { status: 500 },
-    );
+    return Response.json({ error: "Failed to update budget" }, { status: 500 });
   }
 }
 
@@ -139,9 +136,6 @@ export async function DELETE(
     return new Response(null, { status: 204 });
   } catch (error) {
     console.error("Error deleting budget:", error);
-    return Response.json(
-      { error: "Failed to delete budget" },
-      { status: 500 },
-    );
+    return Response.json({ error: "Failed to delete budget" }, { status: 500 });
   }
-}</parameter>
+}

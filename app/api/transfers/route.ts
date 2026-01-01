@@ -13,13 +13,8 @@ export async function POST(request: NextRequest) {
     await ensureDatabase();
 
     const body = await request.json();
-    const {
-      from_wallet_id,
-      to_wallet_id,
-      amount,
-      date,
-      note,
-    } = body as CreateTransferInput;
+    const { from_wallet_id, to_wallet_id, amount, date, note } =
+      body as CreateTransferInput;
 
     // Validate required fields
     if (typeof from_wallet_id !== "number" || from_wallet_id <= 0) {
@@ -81,7 +76,11 @@ export async function POST(request: NextRequest) {
 
     // Handle specific error cases from the repository
     if (error.message) {
-      if (error.message.includes("Source and destination wallets must be different")) {
+      if (
+        error.message.includes(
+          "Source and destination wallets must be different",
+        )
+      ) {
         return Response.json(
           { error: "Source and destination wallets must be different" },
           { status: 400 },
@@ -98,7 +97,10 @@ export async function POST(request: NextRequest) {
 
     // Handle foreign key constraint errors
     if (error.message && error.message.includes("FOREIGN KEY")) {
-      if (error.message.includes("from_wallet_id") || error.message.includes("to_wallet_id")) {
+      if (
+        error.message.includes("from_wallet_id") ||
+        error.message.includes("to_wallet_id")
+      ) {
         return Response.json(
           { error: "Invalid wallet ID: one or both wallets do not exist" },
           { status: 400 },
@@ -111,5 +113,4 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-}</parameter>
-</file_path>
+}

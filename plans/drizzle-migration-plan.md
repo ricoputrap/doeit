@@ -139,49 +139,75 @@ Goal: Convert raw SQL schemas to Drizzle schema definitions with proper TypeScri
 
 ### Execution Steps
 
-- [ ] **Step 1.1**: Create schema directory structure **AND** set up exports.
+- [x] **Step 1.1**: Create schema directory structure **AND** set up exports.
   - Create: `lib/db/schema/index.ts` (main export file)
-  - Deliverable: Schema module structure ready.
+  - Deliverable: ✅ Schema module structure created.
+    - Directory: `lib/db/schema/`
+    - Index file exports all schemas
 
-- [ ] **Step 1.2**: Define wallets schema **AND** verify type inference.
+- [x] **Step 1.2**: Define wallets schema **AND** verify type inference.
   - File: `lib/db/schema/wallets.ts`
   - Define: `walletsTable` with all columns (id, name, created_at, updated_at)
   - Export: TypeScript types (`Wallet`, `NewWallet`)
-  - Deliverable: Wallets schema with type-safe definitions.
+  - Deliverable: ✅ Wallets schema created with type-safe definitions.
+    - Table: `wallets`
+    - Columns: id (PK), name (unique), created_at, updated_at
+    - Types: Wallet, NewWallet
 
-- [ ] **Step 1.3**: Define categories schema **AND** verify type inference.
+- [x] **Step 1.3**: Define categories schema **AND** verify type inference.
   - File: `lib/db/schema/categories.ts`
   - Define: `categoriesTable` with type enum constraint
   - Add unique constraint on (name, type)
   - Export: TypeScript types (`Category`, `NewCategory`)
-  - Deliverable: Categories schema with type-safe definitions.
+  - Deliverable: ✅ Categories schema created with type-safe definitions.
+    - Table: `categories`
+    - Columns: id (PK), name, type (enum: expense/income), created_at, updated_at
+    - Unique constraint: (name, type)
+    - Types: Category, NewCategory, CategoryType
 
-- [ ] **Step 1.4**: Define savings buckets schema **AND** verify type inference.
+- [x] **Step 1.4**: Define savings buckets schema **AND** verify type inference.
   - File: `lib/db/schema/savings-buckets.ts`
   - Define: `savingsBucketsTable` with all columns
   - Export: TypeScript types (`SavingsBucket`, `NewSavingsBucket`)
-  - Deliverable: Savings buckets schema with type-safe definitions.
+  - Deliverable: ✅ Savings buckets schema created with type-safe definitions.
+    - Table: `savings_buckets`
+    - Columns: id (PK), name (unique), created_at, updated_at
+    - Types: SavingsBucket, NewSavingsBucket
 
-- [ ] **Step 1.5**: Define transactions schema **AND** verify type inference.
+- [x] **Step 1.5**: Define transactions schema **AND** verify type inference.
   - File: `lib/db/schema/transactions.ts`
   - Define: `transactionsTable` with foreign keys
   - Add type enum constraint ('expense', 'income', 'transfer', 'savings')
   - Add indexes for date, wallet_id, category_id, type, transfer_id
   - Export: TypeScript types (`Transaction`, `NewTransaction`)
-  - Deliverable: Transactions schema with type-safe definitions and relations.
+  - Deliverable: ✅ Transactions schema created with type-safe definitions and relations.
+    - Table: `transactions`
+    - Columns: id (PK), type (enum), amount, date, note, wallet_id (FK), category_id (FK), transfer_id, savings_bucket_id (FK), created_at, updated_at
+    - Foreign keys: wallets, categories, savings_buckets
+    - Indexes: date, wallet_id, category_id, type, transfer_id
+    - Types: Transaction, NewTransaction, TransactionType
 
-- [ ] **Step 1.6**: Define budgets schema **AND** verify type inference.
+- [x] **Step 1.6**: Define budgets schema **AND** verify type inference.
   - File: `lib/db/schema/budgets.ts`
   - Define: `budgetsTable` with foreign key to categories
   - Add unique constraint on (month, category_id)
   - Add indexes for month and category_id
   - Export: TypeScript types (`Budget`, `NewBudget`)
-  - Deliverable: Budgets schema with type-safe definitions.
+  - Deliverable: ✅ Budgets schema created with type-safe definitions.
+    - Table: `budgets`
+    - Columns: id (PK), month, category_id (FK), limit_amount, created_at, updated_at
+    - Foreign key: categories (cascade on delete)
+    - Unique constraint: (month, category_id)
+    - Indexes: month, category_id
+    - Types: Budget, NewBudget
 
-- [ ] **Step 1.7**: Export all schemas from index **AND** verify imports work.
+- [x] **Step 1.7**: Export all schemas from index **AND** verify imports work.
   - File: `lib/db/schema/index.ts`
   - Export all table schemas and types
-  - Deliverable: Centralized schema exports.
+  - Deliverable: ✅ Centralized schema exports working.
+    - All table schemas exported
+    - All types exported
+    - TypeScript compilation successful
 
 ---
 
@@ -448,7 +474,7 @@ Once Drizzle is stable:
 | Phase                          | Status         | Tests    |
 | ------------------------------ | -------------- | -------- |
 | Phase 0 - Setup Infrastructure | ✅ Complete    | -        |
-| Phase 1 - Define Schemas       | 🔲 Not Started | -        |
+| Phase 1 - Define Schemas       | ✅ Complete    | -        |
 | Phase 2 - Generate Migration   | 🔲 Not Started | -        |
 | Phase 3 - New Connection Layer | 🔲 Not Started | -        |
 | Phase 4 - Migrate Repositories | 🔲 Not Started | 174+     |
@@ -456,7 +482,7 @@ Once Drizzle is stable:
 | Phase 6 - Remove sql.js        | 🔲 Not Started | -        |
 | Phase 7 - Verification         | 🔲 Not Started | All pass |
 
-**Current Status**: Phase 0 Complete - Ready to begin Phase 1
+**Current Status**: Phase 1 Complete - Ready to begin Phase 2
 
 ---
 

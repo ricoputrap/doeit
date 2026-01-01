@@ -77,11 +77,13 @@ Goal: establish project conventions, Tailwind desktop layout baseline, and a “
 
 ### Execution Steps
 
-- [ ] **Step 0.1**: Confirm TailwindCSS is correctly configured and provide a basic desktop-first layout shell **AND** add a UI smoke test for the layout.
+- [x] **Step 0.1**: Confirm TailwindCSS is correctly configured and provide a basic desktop-first layout shell **AND** add a UI smoke test for the layout.
   - Deliverable: App renders a simple navigation frame (Dashboard / Transactions / Wallets / Categories / Budgets) with Tailwind styling.
+  - Status: ✅ COMPLETED - Created desktop-first layout with navigation, all placeholder pages (dashboard, transactions, wallets, categories, budgets), and UI smoke test at `app/layout.test.tsx`.
 
-- [ ] **Step 0.2**: Add `GET /api/health` Route Handler **AND** add a route handler test.
+- [x] **Step 0.2**: Add `GET /api/health` Route Handler **AND** add a route handler test.
   - Deliverable: You can hit the endpoint and see `{ ok: true }` (or similar), proving API boundary.
+  - Status: ✅ COMPLETED - Created health endpoint at `app/api/health/route.ts` with test at `app/api/health/route.test.ts`.
 
 ---
 

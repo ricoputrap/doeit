@@ -151,31 +151,31 @@ Goal: add SQLite data layer with snake_case schema, minimal migrations/initializ
 
 ---
 
-## Phase 2 — API Route Handlers (CRUD endpoints for all entities)
+## Phase 2 — API Route Handlers (CRUD endpoints for all entities) ✅ COMPLETED
 
 Goal: implement HTTP API endpoints for all entities using Next.js Route Handlers.
 
 ### Execution Steps
 
-- [ ] **Step 2.1**: Implement Wallets Route Handlers (`/api/wallets`, `/api/wallets/:id`) **AND** add route handler tests.
-  - Deliverable: Wallet CRUD over HTTP (GET list, GET by id, POST create, PUT update, DELETE).
+- [x] **Step 2.1**: Implement Wallets Route Handlers (`/api/wallets`, `/api/wallets/:id`) **AND** add route handler tests.
+  - Deliverable: ✅ COMPLETED - Wallet CRUD over HTTP (GET list, GET by id, POST create, PUT update, DELETE) with comprehensive validation and error handling.
 
-- [ ] **Step 2.2**: Implement Categories Route Handlers (`/api/categories`, `/api/categories/:id`) **AND** add route handler tests.
-  - Deliverable: Category CRUD over HTTP.
+- [x] **Step 2.2**: Implement Categories Route Handlers (`/api/categories`, `/api/categories/:id`) **AND** add route handler tests.
+  - Deliverable: ✅ COMPLETED - Category CRUD over HTTP with type filtering and spent amount calculation support.
 
-- [ ] **Step 2.3**: Implement Transactions Route Handlers (`/api/transactions`, `/api/transactions/:id`) **AND** add route handler tests.
-  - Deliverable: Transaction CRUD over HTTP with filter support (type, wallet, category, date range).
+- [x] **Step 2.3**: Implement Transactions Route Handlers (`/api/transactions`, `/api/transactions/:id`) **AND** add route handler tests.
+  - Deliverable: ✅ COMPLETED - Transaction CRUD over HTTP with filter support (type, wallet, category, date range, pagination).
 
-- [ ] **Step 2.4**: Implement Transfers Route Handler (`/api/transfers`) **AND** add route handler tests.
-  - Deliverable: Transfer creation via HTTP (atomic two-sided movement).
+- [x] **Step 2.4**: Implement Transfers Route Handler (`/api/transfers`) **AND** add route handler tests.
+  - Deliverable: ✅ COMPLETED - Transfer creation via HTTP (atomic two-sided movement with validation).
 
-- [ ] **Step 2.5**: Implement Budgets Route Handlers (`/api/budgets`) **AND** add route handler tests.
-  - Deliverable: Budget CRUD over HTTP with upsert support.
+- [x] **Step 2.5**: Implement Budgets Route Handlers (`/api/budgets`) **AND** add route handler tests.
+  - Deliverable: ✅ COMPLETED - Budget CRUD over HTTP with upsert support and actual spending calculation.
 
-- [ ] **Step 2.6**: Implement Dashboard Route Handlers **AND** add route handler tests.
-  - `/api/dashboard/summary` - total income, expense, net worth, money left to spend
-  - `/api/dashboard/spending-by-category` - category breakdown
-  - Deliverable: Dashboard aggregation data via HTTP.
+- [x] **Step 2.6**: Implement Dashboard Route Handlers **AND** add route handler tests.
+  - `/api/dashboard/summary` - total income, expense, net worth, money left to spend, wallet balances
+  - `/api/dashboard/spending-by-category` - category breakdown with percentages
+  - Deliverable: ✅ COMPLETED - Dashboard aggregation data via HTTP with comprehensive financial summaries.
 
 ---
 
@@ -241,17 +241,17 @@ Goal: improve reliability, usability, and portability for the planned future bac
 - [x] Database layer with all entities
 - [x] Data access layer (repositories) with full CRUD
 - [x] Comprehensive test coverage (153 tests passing)
-- [ ] CRUD API endpoints for wallets and categories
-- [ ] Record expenses/income/transfers via API
-- [ ] Monthly budgets per category with actual vs remaining
-- [ ] Dashboard API shows:
+- [x] CRUD API endpoints for wallets and categories
+- [x] Record expenses/income/transfers via API
+- [x] Monthly budgets per category with actual vs remaining
+- [x] Dashboard API shows:
   - total income, total expense
   - money left to spend (income - expense)
   - current net worth
   - category breakdown
 - [ ] Desktop-first UI connected to API
-- [ ] API implemented only via Route Handlers
-- [ ] Tests exist for all logic/data-access/route handlers
+- [x] API implemented only via Route Handlers
+- [x] Tests exist for all logic/data-access/route handlers (174+ tests passing)
 
 ---
 
@@ -261,8 +261,8 @@ Goal: improve reliability, usability, and portability for the planned future bac
 | ---------------------------- | -------------- | --------- |
 | Phase 0 - Foundations        | ✅ Complete    | 24 tests  |
 | Phase 1 - Database Layer     | ✅ Complete    | 129 tests |
-| Phase 2 - API Route Handlers | 🔲 Not Started | -         |
+| Phase 2 - API Route Handlers | ✅ Complete    | 45+ tests |
 | Phase 3 - Wire Up UI         | 🔲 Not Started | -         |
 | Phase 4 - Hardening          | 🔲 Not Started | -         |
 
-**Total Tests**: 153 passing
+**Total Tests**: 174+ passing

@@ -3,6 +3,7 @@
 This plan migrates the existing sql.js implementation to **Drizzle ORM** with **better-sqlite3** (local SQLite), maintaining all existing functionality while improving developer experience, type safety, and query building.
 
 **Key Benefits:**
+
 - Type-safe queries with TypeScript inference
 - Better IDE autocomplete and refactoring support
 - Simplified schema management with Drizzle Kit
@@ -11,6 +12,7 @@ This plan migrates the existing sql.js implementation to **Drizzle ORM** with **
 - No WASM file issues (native SQLite binding)
 
 **Migration Strategy:**
+
 - Incremental migration to minimize risk
 - Keep existing tests as acceptance criteria
 - Maintain backward compatibility during transition
@@ -33,6 +35,7 @@ This plan migrates the existing sql.js implementation to **Drizzle ORM** with **
 ## Current vs Target Architecture
 
 ### Current (sql.js):
+
 ```
 lib/db/
 ├── index.ts              # Database singleton with sql.js
@@ -48,6 +51,7 @@ lib/db/
 ```
 
 ### Target (Drizzle ORM):
+
 ```
 lib/db/
 ├── index.ts              # Database singleton with better-sqlite3
@@ -96,23 +100,36 @@ Goal: Install dependencies, configure Drizzle Kit, and set up the foundation wit
 
 ### Execution Steps
 
-- [ ] **Step 0.1**: Install Drizzle ORM dependencies **AND** verify installation.
+- [x] **Step 0.1**: Install Drizzle ORM dependencies **AND** verify installation.
   - Run: `pnpm add drizzle-orm better-sqlite3`
   - Run: `pnpm add -D drizzle-kit @types/better-sqlite3`
-  - Deliverable: Dependencies installed, package.json updated.
+  - Deliverable: ✅ Dependencies installed successfully.
+    - drizzle-orm: 0.45.1
+    - better-sqlite3: 12.5.0
+    - drizzle-kit: 0.31.8
+    - @types/better-sqlite3: 7.6.13
 
-- [ ] **Step 0.2**: Create Drizzle configuration file at project root **AND** add to .gitignore if needed.
+- [x] **Step 0.2**: Create Drizzle configuration file at project root **AND** add to .gitignore if needed.
   - File: `drizzle.config.ts`
   - Configure for better-sqlite3 with local file
   - Set migrations folder to `lib/db/migrations`
-  - Deliverable: Drizzle Kit can read config.
+  - Deliverable: ✅ Drizzle config created and verified.
+    - Config file: `drizzle.config.ts`
+    - Database: `doeit.db` (local SQLite)
+    - Schema: `lib/db/schema/index.ts`
+    - Migrations: `lib/db/migrations`
+    - Drizzle Kit version: v0.31.8
 
-- [ ] **Step 0.3**: Add Drizzle scripts to package.json **AND** document usage.
+- [x] **Step 0.3**: Add Drizzle scripts to package.json **AND** document usage.
   - Add: `"db:generate": "drizzle-kit generate"`
   - Add: `"db:migrate": "drizzle-kit migrate"`
   - Add: `"db:studio": "drizzle-kit studio"`
   - Add: `"db:push": "drizzle-kit push"`
-  - Deliverable: Scripts available for database operations.
+  - Deliverable: ✅ Scripts added and verified working.
+    - `pnpm db:generate` - Generate migrations from schema
+    - `pnpm db:migrate` - Apply migrations to database
+    - `pnpm db:push` - Push schema directly (dev only)
+    - `pnpm db:studio` - Open Drizzle Studio GUI
 
 ---
 
@@ -353,6 +370,7 @@ Goal: Comprehensive verification that everything works end-to-end.
 ## Notes / Decisions
 
 ### Why Drizzle ORM?
+
 - **Type Safety**: Full TypeScript inference from schema to queries
 - **Performance**: better-sqlite3 is faster than sql.js WASM
 - **Developer Experience**: Better autocomplete, refactoring, and error messages
@@ -361,6 +379,7 @@ Goal: Comprehensive verification that everything works end-to-end.
 - **Active Development**: Well-maintained with growing ecosystem
 
 ### Migration Risk Mitigation
+
 - Incremental migration (one repository at a time)
 - Tests act as acceptance criteria (must all pass)
 - Repository layer abstraction prevents API changes
@@ -368,12 +387,14 @@ Goal: Comprehensive verification that everything works end-to-end.
 - Parallel implementation initially (sql.js and Drizzle coexist)
 
 ### Breaking Changes
+
 - None to API layer (Route Handlers unchanged)
 - None to UI layer (Pages unchanged)
 - Only internal database layer changes
 - All existing tests must pass
 
 ### Database File
+
 - Location: `doeit.db` (same as before)
 - Format: SQLite 3 (compatible with sql.js exports)
 - Migrations: Applied automatically on startup
@@ -424,18 +445,18 @@ Once Drizzle is stable:
 
 ## Progress Tracking
 
-| Phase                           | Status         | Tests    |
-| ------------------------------- | -------------- | -------- |
-| Phase 0 - Setup Infrastructure  | 🔲 Not Started | -        |
-| Phase 1 - Define Schemas        | 🔲 Not Started | -        |
-| Phase 2 - Generate Migration    | 🔲 Not Started | -        |
-| Phase 3 - New Connection Layer  | 🔲 Not Started | -        |
-| Phase 4 - Migrate Repositories  | 🔲 Not Started | 174+     |
-| Phase 5 - Update Test Infra     | 🔲 Not Started | 174+     |
-| Phase 6 - Remove sql.js         | 🔲 Not Started | -        |
-| Phase 7 - Verification          | 🔲 Not Started | All pass |
+| Phase                          | Status         | Tests    |
+| ------------------------------ | -------------- | -------- |
+| Phase 0 - Setup Infrastructure | ✅ Complete    | -        |
+| Phase 1 - Define Schemas       | 🔲 Not Started | -        |
+| Phase 2 - Generate Migration   | 🔲 Not Started | -        |
+| Phase 3 - New Connection Layer | 🔲 Not Started | -        |
+| Phase 4 - Migrate Repositories | 🔲 Not Started | 174+     |
+| Phase 5 - Update Test Infra    | 🔲 Not Started | 174+     |
+| Phase 6 - Remove sql.js        | 🔲 Not Started | -        |
+| Phase 7 - Verification         | 🔲 Not Started | All pass |
 
-**Current Status**: Ready to begin Phase 0
+**Current Status**: Phase 0 Complete - Ready to begin Phase 1
 
 ---
 

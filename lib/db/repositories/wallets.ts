@@ -5,37 +5,22 @@ import type {
   UpdateWalletInput,
   WalletWithBalance,
 } from "../types";
+import { walletsTable } from "../schema/wallets.js";
+import { transactionsTable } from "../schema/transactions.js";
+import { and, eq, sql, desc } from "drizzle-orm";
 
 /**
- * Wallet Repository
+ * Wallet Repository using Drizzle ORM
  * Handles all database operations for wallets
  */
-
-/**
- * Helper to convert sql.js result to array of objects
- */
-function resultToArray<T>(result: any[]): T[] {
-  if (!result || result.length === 0) return [];
-  const [queryResult] = result;
-  if (!queryResult) return [];
-
-  const { columns, values } = queryResult;
-  return values.map((row: any[]) => {
-    const obj: Record<string, unknown> = {};
-    columns.forEach((col: string, idx: number) => {
-      obj[col] = row[idx];
-    });
-    return obj as T;
-  });
-}
 
 /**
  * Get all wallets
  */
 export function getAllWallets(): Wallet[] {
   const db = getDatabase();
-  const result = db.exec("SELECT * FROM wallets ORDER BY name");
-  return resultToArray<Wallet>(result);
+  const result = db.select().from(walletsTable).orderBy(walletsTable.name);
+  return result;
 }
 
 /**
@@ -43,17 +28,8 @@ export function getAllWallets(): Wallet[] {
  */
 export function getWalletById(id: number): Wallet | null {
   const db = getDatabase();
-  const stmt = db.prepare("SELECT * FROM wallets WHERE id = ?");
-  stmt.bind([id]);
-
-  if (stmt.step()) {
-    const row = stmt.getAsObject() as unknown as Wallet;
-    stmt.free();
-    return row;
-  }
-
-  stmt.free();
-  return null;
+  const result = db.select().from(walletsTable).where(eq(walletsTable.id, id));
+  return result[0] || null;
 }
 
 /**
@@ -61,17 +37,11 @@ export function getWalletById(id: number): Wallet | null {
  */
 export function getWalletByName(name: string): Wallet | null {
   const db = getDatabase();
-  const stmt = db.prepare("SELECT * FROM wallets WHERE name = ?");
-  stmt.bind([name]);
-
-  if (stmt.step()) {
-    const row = stmt.getAsObject() as unknown as Wallet;
-    stmt.free();
-    return row;
-  }
-
-  stmt.free();
-  return null;
+  const result = db
+    .select()
+    .from(walletsTable)
+    .where(eq(walletsTable.name, name));
+  return result[0] || null;
 }
 
 /**
@@ -80,17 +50,16 @@ export function getWalletByName(name: string): Wallet | null {
 export function createWallet(input: CreateWalletInput): Wallet {
   const db = getDatabase();
 
-  db.run(
-    `INSERT INTO wallets (name, created_at, updated_at) VALUES (?, datetime('now'), datetime('now'))`,
-    [input.name],
-  );
-
-  const id = db.exec("SELECT last_insert_rowid() as id")[0]
-    .values[0][0] as number;
+  const result = db
+    .insert(walletsTable)
+    .values({
+      name: input.name,
+    })
+    .returning();
 
   saveDatabase();
 
-  return getWalletById(id)!;
+  return result[0];
 }
 
 /**
@@ -108,26 +77,24 @@ export function updateWallet(
     return null;
   }
 
-  // Build update query dynamically based on provided fields
-  const updates: string[] = [];
-  const values: (string | number)[] = [];
+  // Build update values dynamically
+  const updateValues: Partial<typeof walletsTable.$inferInsert> = {
+    updated_at: new Date().toISOString(),
+  };
 
   if (input.name !== undefined) {
-    updates.push("name = ?");
-    values.push(input.name);
+    updateValues.name = input.name;
   }
 
-  // Always update updated_at
-  updates.push("updated_at = datetime('now')");
-
-  // Add id for WHERE clause
-  values.push(id);
-
-  db.run(`UPDATE wallets SET ${updates.join(", ")} WHERE id = ?`, values);
+  const result = db
+    .update(walletsTable)
+    .set(updateValues)
+    .where(eq(walletsTable.id, id))
+    .returning();
 
   saveDatabase();
 
-  return getWalletById(id);
+  return result[0] || null;
 }
 
 /**
@@ -145,9 +112,13 @@ export function deleteWallet(id: number): boolean {
   }
 
   try {
-    db.run("DELETE FROM wallets WHERE id = ?", [id]);
+    const result = db
+      .delete(walletsTable)
+      .where(eq(walletsTable.id, id))
+      .returning({ id: walletsTable.id });
+
     saveDatabase();
-    return true;
+    return result.length > 0;
   } catch (error) {
     throw error;
   }
@@ -158,11 +129,13 @@ export function deleteWallet(id: number): boolean {
  */
 export function walletExists(id: number): boolean {
   const db = getDatabase();
-  const stmt = db.prepare("SELECT 1 FROM wallets WHERE id = ?");
-  stmt.bind([id]);
-  const exists = stmt.step();
-  stmt.free();
-  return exists;
+  const result = db
+    .select({ id: walletsTable.id })
+    .from(walletsTable)
+    .where(eq(walletsTable.id, id))
+    .limit(1);
+
+  return result.length > 0;
 }
 
 /**
@@ -172,31 +145,35 @@ export function walletExists(id: number): boolean {
 export function getAllWalletsWithBalances(): WalletWithBalance[] {
   const db = getDatabase();
 
-  const result = db.exec(`
-    SELECT
-      w.*,
-      COALESCE(
-        (
-          SELECT SUM(
-            CASE
-              WHEN t.type = 'income' THEN t.amount
-              WHEN t.type = 'expense' THEN -t.amount
-              WHEN t.type = 'transfer' AND t.amount > 0 THEN t.amount
-              WHEN t.type = 'transfer' AND t.amount < 0 THEN t.amount
-              WHEN t.type = 'savings' THEN -t.amount
-              ELSE 0
-            END
-          )
-          FROM transactions t
-          WHERE t.wallet_id = w.id
-        ),
-        0
-      ) as balance
-    FROM wallets w
-    ORDER BY w.name
-  `);
+  const result = db
+    .select({
+      id: walletsTable.id,
+      name: walletsTable.name,
+      created_at: walletsTable.created_at,
+      updated_at: walletsTable.updated_at,
+      balance: sql<number>`
+        COALESCE(
+          (
+            SELECT SUM(
+              CASE
+                WHEN ${transactionsTable.type} = 'income' THEN ${transactionsTable.amount}
+                WHEN ${transactionsTable.type} = 'expense' THEN -${transactionsTable.amount}
+                WHEN ${transactionsTable.type} = 'transfer' THEN ${transactionsTable.amount}
+                WHEN ${transactionsTable.type} = 'savings' THEN -${transactionsTable.amount}
+                ELSE 0
+              END
+            )
+            FROM ${transactionsTable}
+            WHERE ${transactionsTable.wallet_id} = ${walletsTable.id}
+          ),
+          0
+        )
+      `,
+    })
+    .from(walletsTable)
+    .orderBy(walletsTable.name);
 
-  return resultToArray<WalletWithBalance>(result);
+  return result as WalletWithBalance[];
 }
 
 /**
@@ -205,32 +182,27 @@ export function getAllWalletsWithBalances(): WalletWithBalance[] {
 export function getWalletBalance(id: number): number {
   const db = getDatabase();
 
-  const result = db.exec(
-    `
-    SELECT COALESCE(
-      SUM(
-        CASE
-          WHEN type = 'income' THEN amount
-          WHEN type = 'expense' THEN -amount
-          WHEN type = 'transfer' AND amount > 0 THEN amount
-          WHEN type = 'transfer' AND amount < 0 THEN amount
-          WHEN type = 'savings' THEN -amount
-          ELSE 0
-        END
-      ),
-      0
-    ) as balance
-    FROM transactions
-    WHERE wallet_id = ?
-  `,
-    [id],
-  );
+  const result = db
+    .select({
+      balance: sql<number>`
+        COALESCE(
+          SUM(
+            CASE
+              WHEN ${transactionsTable.type} = 'income' THEN ${transactionsTable.amount}
+              WHEN ${transactionsTable.type} = 'expense' THEN -${transactionsTable.amount}
+              WHEN ${transactionsTable.type} = 'transfer' THEN ${transactionsTable.amount}
+              WHEN ${transactionsTable.type} = 'savings' THEN -${transactionsTable.amount}
+              ELSE 0
+            END
+          ),
+          0
+        )
+      `,
+    })
+    .from(transactionsTable)
+    .where(eq(transactionsTable.wallet_id, id));
 
-  if (result.length === 0 || result[0].values.length === 0) {
-    return 0;
-  }
-
-  return result[0].values[0][0] as number;
+  return result[0]?.balance || 0;
 }
 
 /**
@@ -239,11 +211,7 @@ export function getWalletBalance(id: number): number {
 export function countWallets(): number {
   const db = getDatabase();
 
-  const result = db.exec("SELECT COUNT(*) as count FROM wallets");
+  const result = db.select({ count: sql<number>`COUNT(*)` }).from(walletsTable);
 
-  if (result.length === 0 || result[0].values.length === 0) {
-    return 0;
-  }
-
-  return result[0].values[0][0] as number;
+  return result[0]?.count || 0;
 }

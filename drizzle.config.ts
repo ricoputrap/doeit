@@ -4,6 +4,9 @@ export default defineConfig({
   // Database dialect
   dialect: "sqlite",
 
+  // Database driver
+  driver: "sql.js",
+
   // Database connection
   dbCredentials: {
     url: process.env.DATABASE_PATH || "./doeit.db",

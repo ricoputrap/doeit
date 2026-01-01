@@ -7,30 +7,17 @@ import type {
   Transfer,
   TransactionFilter,
 } from "../types";
+import { transactionsTable } from "../schema/transactions.js";
+import { walletsTable } from "../schema/wallets.js";
+import { categoriesTable } from "../schema/categories.js";
+import { savingsBucketsTable } from "../schema/savings-buckets.js";
+import { eq, and, sql, desc, gt, lt } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
 /**
- * Transaction Repository
+ * Transaction Repository using Drizzle ORM
  * Handles all database operations for transactions
  */
-
-/**
- * Helper to convert sql.js result to array of objects
- */
-function resultToArray<T>(result: any[]): T[] {
-  if (!result || result.length === 0) return [];
-  const [queryResult] = result;
-  if (!queryResult) return [];
-
-  const { columns, values } = queryResult;
-  return values.map((row: any[]) => {
-    const obj: Record<string, unknown> = {};
-    columns.forEach((col: string, idx: number) => {
-      obj[col] = row[idx];
-    });
-    return obj as T;
-  });
-}
 
 /**
  * Get all transactions with optional filters
@@ -38,48 +25,49 @@ function resultToArray<T>(result: any[]): T[] {
 export function getTransactions(filter?: TransactionFilter): Transaction[] {
   const db = getDatabase();
 
-  const conditions: string[] = [];
-  const values: (string | number)[] = [];
+  let query = db.select().from(transactionsTable);
+
+  const conditions = [];
 
   if (filter?.type) {
-    conditions.push("type = ?");
-    values.push(filter.type);
+    conditions.push(eq(transactionsTable.type, filter.type));
   }
 
   if (filter?.wallet_id) {
-    conditions.push("wallet_id = ?");
-    values.push(filter.wallet_id);
+    conditions.push(eq(transactionsTable.wallet_id, filter.wallet_id));
   }
 
   if (filter?.category_id) {
-    conditions.push("category_id = ?");
-    values.push(filter.category_id);
+    conditions.push(eq(transactionsTable.category_id, filter.category_id));
   }
 
   if (filter?.start_date) {
-    conditions.push("date >= ?");
-    values.push(filter.start_date);
+    conditions.push(sql`${transactionsTable.date} >= ${filter.start_date}`);
   }
 
   if (filter?.end_date) {
-    conditions.push("date < ?");
-    values.push(filter.end_date);
+    conditions.push(sql`${transactionsTable.date} < ${filter.end_date}`);
   }
 
-  const whereClause =
-    conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  if (conditions.length > 0) {
+    query = query.where(and(...conditions));
+  }
 
-  let query = `SELECT * FROM transactions ${whereClause} ORDER BY date DESC, created_at DESC`;
+  // Order by date DESC, then created_at DESC
+  query = query.orderBy(
+    desc(transactionsTable.date),
+    desc(transactionsTable.created_at),
+  );
 
   if (filter?.limit) {
-    query += ` LIMIT ${filter.limit}`;
+    query = query.limit(filter.limit);
     if (filter?.offset) {
-      query += ` OFFSET ${filter.offset}`;
+      query = query.offset(filter.offset);
     }
   }
 
-  const result = db.exec(query, values);
-  return resultToArray<Transaction>(result);
+  const result = query;
+  return result;
 }
 
 /**
@@ -87,17 +75,11 @@ export function getTransactions(filter?: TransactionFilter): Transaction[] {
  */
 export function getTransactionById(id: number): Transaction | null {
   const db = getDatabase();
-  const stmt = db.prepare("SELECT * FROM transactions WHERE id = ?");
-  stmt.bind([id]);
-
-  if (stmt.step()) {
-    const row = stmt.getAsObject() as unknown as Transaction;
-    stmt.free();
-    return row;
-  }
-
-  stmt.free();
-  return null;
+  const result = db
+    .select()
+    .from(transactionsTable)
+    .where(eq(transactionsTable.id, id));
+  return result[0] || null;
 }
 
 /**
@@ -105,11 +87,12 @@ export function getTransactionById(id: number): Transaction | null {
  */
 export function getTransactionsByTransferId(transferId: string): Transaction[] {
   const db = getDatabase();
-  const result = db.exec(
-    "SELECT * FROM transactions WHERE transfer_id = ? ORDER BY amount DESC",
-    [transferId],
-  );
-  return resultToArray<Transaction>(result);
+  const result = db
+    .select()
+    .from(transactionsTable)
+    .where(eq(transactionsTable.transfer_id, transferId))
+    .orderBy(desc(transactionsTable.amount));
+  return result;
 }
 
 /**
@@ -118,27 +101,23 @@ export function getTransactionsByTransferId(transferId: string): Transaction[] {
 export function createTransaction(input: CreateTransactionInput): Transaction {
   const db = getDatabase();
 
-  db.run(
-    `INSERT INTO transactions (type, amount, date, note, wallet_id, category_id, transfer_id, savings_bucket_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
-    [
-      input.type,
-      input.amount,
-      input.date,
-      input.note || null,
-      input.wallet_id,
-      input.category_id || null,
-      input.transfer_id || null,
-      input.savings_bucket_id || null,
-    ],
-  );
-
-  const id = db.exec("SELECT last_insert_rowid() as id")[0]
-    .values[0][0] as number;
+  const result = db
+    .insert(transactionsTable)
+    .values({
+      type: input.type,
+      amount: input.amount,
+      date: input.date,
+      note: input.note || null,
+      wallet_id: input.wallet_id,
+      category_id: input.category_id || null,
+      transfer_id: input.transfer_id || null,
+      savings_bucket_id: input.savings_bucket_id || null,
+    })
+    .returning();
 
   saveDatabase();
 
-  return getTransactionById(id)!;
+  return result[0];
 }
 
 /**
@@ -161,43 +140,37 @@ export function createTransfer(input: CreateTransferInput): Transfer {
   const transferId = randomUUID();
 
   // Create outgoing transaction (from source wallet) - negative amount
-  db.run(
-    `INSERT INTO transactions (type, amount, date, note, wallet_id, transfer_id, created_at, updated_at)
-     VALUES ('transfer', ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
-    [
-      -input.amount,
-      input.date,
-      input.note || null,
-      input.from_wallet_id,
-      transferId,
-    ],
-  );
-
-  const fromId = db.exec("SELECT last_insert_rowid() as id")[0]
-    .values[0][0] as number;
+  const fromResult = db
+    .insert(transactionsTable)
+    .values({
+      type: "transfer",
+      amount: -input.amount,
+      date: input.date,
+      note: input.note || null,
+      wallet_id: input.from_wallet_id,
+      transfer_id: transferId,
+    })
+    .returning();
 
   // Create incoming transaction (to destination wallet) - positive amount
-  db.run(
-    `INSERT INTO transactions (type, amount, date, note, wallet_id, transfer_id, created_at, updated_at)
-     VALUES ('transfer', ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
-    [
-      input.amount,
-      input.date,
-      input.note || null,
-      input.to_wallet_id,
-      transferId,
-    ],
-  );
-
-  const toId = db.exec("SELECT last_insert_rowid() as id")[0]
-    .values[0][0] as number;
+  const toResult = db
+    .insert(transactionsTable)
+    .values({
+      type: "transfer",
+      amount: input.amount,
+      date: input.date,
+      note: input.note || null,
+      wallet_id: input.to_wallet_id,
+      transfer_id: transferId,
+    })
+    .returning();
 
   saveDatabase();
 
   return {
     id: transferId,
-    from_transaction: getTransactionById(fromId)!,
-    to_transaction: getTransactionById(toId)!,
+    from_transaction: fromResult[0],
+    to_transaction: toResult[0],
   };
 }
 
@@ -224,56 +197,48 @@ export function updateTransaction(
     );
   }
 
-  // Build update query dynamically based on provided fields
-  const updates: string[] = [];
-  const values: (string | number | null)[] = [];
+  // Build update values dynamically
+  const updateValues: Partial<typeof transactionsTable.$inferInsert> = {
+    updated_at: new Date().toISOString(),
+  };
 
   if (input.type !== undefined) {
-    updates.push("type = ?");
-    values.push(input.type);
+    updateValues.type = input.type;
   }
 
   if (input.amount !== undefined) {
-    updates.push("amount = ?");
-    values.push(input.amount);
+    updateValues.amount = input.amount;
   }
 
   if (input.date !== undefined) {
-    updates.push("date = ?");
-    values.push(input.date);
+    updateValues.date = input.date;
   }
 
   if (input.note !== undefined) {
-    updates.push("note = ?");
-    values.push(input.note);
+    updateValues.note = input.note;
   }
 
   if (input.wallet_id !== undefined) {
-    updates.push("wallet_id = ?");
-    values.push(input.wallet_id);
+    updateValues.wallet_id = input.wallet_id;
   }
 
   if (input.category_id !== undefined) {
-    updates.push("category_id = ?");
-    values.push(input.category_id);
+    updateValues.category_id = input.category_id;
   }
 
   if (input.savings_bucket_id !== undefined) {
-    updates.push("savings_bucket_id = ?");
-    values.push(input.savings_bucket_id);
+    updateValues.savings_bucket_id = input.savings_bucket_id;
   }
 
-  // Always update updated_at
-  updates.push("updated_at = datetime('now')");
-
-  // Add id for WHERE clause
-  values.push(id);
-
-  db.run(`UPDATE transactions SET ${updates.join(", ")} WHERE id = ?`, values);
+  const result = db
+    .update(transactionsTable)
+    .set(updateValues)
+    .where(eq(transactionsTable.id, id))
+    .returning();
 
   saveDatabase();
 
-  return getTransactionById(id);
+  return result[0] || null;
 }
 
 /**
@@ -290,16 +255,21 @@ export function deleteTransaction(id: number): boolean {
 
   // If it's a transfer, delete both sides
   if (existing.type === "transfer" && existing.transfer_id) {
-    db.run("DELETE FROM transactions WHERE transfer_id = ?", [
-      existing.transfer_id,
-    ]);
+    const result = db
+      .delete(transactionsTable)
+      .where(eq(transactionsTable.transfer_id, existing.transfer_id))
+      .returning({ id: transactionsTable.id });
     saveDatabase();
-    return true;
+    return result.length > 0;
   }
 
-  db.run("DELETE FROM transactions WHERE id = ?", [id]);
+  const result = db
+    .delete(transactionsTable)
+    .where(eq(transactionsTable.id, id))
+    .returning({ id: transactionsTable.id });
+
   saveDatabase();
-  return true;
+  return result.length > 0;
 }
 
 /**
@@ -314,9 +284,13 @@ export function deleteTransfer(transferId: string): boolean {
     return false;
   }
 
-  db.run("DELETE FROM transactions WHERE transfer_id = ?", [transferId]);
+  const result = db
+    .delete(transactionsTable)
+    .where(eq(transactionsTable.transfer_id, transferId))
+    .returning({ id: transactionsTable.id });
+
   saveDatabase();
-  return true;
+  return result.length > 0;
 }
 
 /**
@@ -325,22 +299,22 @@ export function deleteTransfer(transferId: string): boolean {
 export function getTotalIncome(startDate: string, endDate: string): number {
   const db = getDatabase();
 
-  const result = db.exec(
-    `
-    SELECT COALESCE(SUM(amount), 0) as total
-    FROM transactions
-    WHERE type = 'income'
-      AND date >= ?
-      AND date < ?
-  `,
-    [startDate, endDate],
-  );
+  const result = db
+    .select({
+      total: sql<number>`
+        COALESCE(SUM(${transactionsTable.amount}), 0)
+      `,
+    })
+    .from(transactionsTable)
+    .where(
+      and(
+        eq(transactionsTable.type, "income"),
+        sql`${transactionsTable.date} >= ${startDate}`,
+        sql`${transactionsTable.date} < ${endDate}`,
+      ),
+    );
 
-  if (result.length === 0 || result[0].values.length === 0) {
-    return 0;
-  }
-
-  return result[0].values[0][0] as number;
+  return result[0]?.total || 0;
 }
 
 /**
@@ -349,22 +323,22 @@ export function getTotalIncome(startDate: string, endDate: string): number {
 export function getTotalExpenses(startDate: string, endDate: string): number {
   const db = getDatabase();
 
-  const result = db.exec(
-    `
-    SELECT COALESCE(SUM(amount), 0) as total
-    FROM transactions
-    WHERE type = 'expense'
-      AND date >= ?
-      AND date < ?
-  `,
-    [startDate, endDate],
-  );
+  const result = db
+    .select({
+      total: sql<number>`
+        COALESCE(SUM(${transactionsTable.amount}), 0)
+      `,
+    })
+    .from(transactionsTable)
+    .where(
+      and(
+        eq(transactionsTable.type, "expense"),
+        sql`${transactionsTable.date} >= ${startDate}`,
+        sql`${transactionsTable.date} < ${endDate}`,
+      ),
+    );
 
-  if (result.length === 0 || result[0].values.length === 0) {
-    return 0;
-  }
-
-  return result[0].values[0][0] as number;
+  return result[0]?.total || 0;
 }
 
 /**
@@ -376,30 +350,34 @@ export function getSpendingByCategory(
 ): { category_id: number; category_name: string; total: number }[] {
   const db = getDatabase();
 
-  const result = db.exec(
-    `
-    SELECT
-      c.id as category_id,
-      c.name as category_name,
-      COALESCE(SUM(t.amount), 0) as total
-    FROM categories c
-    LEFT JOIN transactions t ON t.category_id = c.id
-      AND t.type = 'expense'
-      AND t.date >= ?
-      AND t.date < ?
-    WHERE c.type = 'expense'
-    GROUP BY c.id, c.name
-    HAVING total > 0
-    ORDER BY total DESC
-  `,
-    [startDate, endDate],
-  );
+  const result = db
+    .select({
+      category_id: categoriesTable.id,
+      category_name: categoriesTable.name,
+      total: sql<number>`
+        COALESCE(SUM(${transactionsTable.amount}), 0)
+      `,
+    })
+    .from(categoriesTable)
+    .leftJoin(
+      transactionsTable,
+      and(
+        eq(categoriesTable.id, transactionsTable.category_id),
+        eq(transactionsTable.type, "expense"),
+        sql`${transactionsTable.date} >= ${startDate}`,
+        sql`${transactionsTable.date} < ${endDate}`,
+      ),
+    )
+    .where(eq(categoriesTable.type, "expense"))
+    .groupBy(categoriesTable.id, categoriesTable.name)
+    .having(sql`total > 0`)
+    .orderBy(desc(sql`total`));
 
-  return resultToArray<{
+  return result as {
     category_id: number;
     category_name: string;
     total: number;
-  }>(result);
+  }[];
 }
 
 /**
@@ -408,27 +386,26 @@ export function getSpendingByCategory(
 export function getNetWorth(): number {
   const db = getDatabase();
 
-  const result = db.exec(`
-    SELECT COALESCE(
-      SUM(
-        CASE
-          WHEN type = 'income' THEN amount
-          WHEN type = 'expense' THEN -amount
-          WHEN type = 'transfer' THEN amount
-          WHEN type = 'savings' THEN -amount
-          ELSE 0
-        END
-      ),
-      0
-    ) as net_worth
-    FROM transactions
-  `);
+  const result = db
+    .select({
+      net_worth: sql<number>`
+        COALESCE(
+          SUM(
+            CASE
+              WHEN ${transactionsTable.type} = 'income' THEN ${transactionsTable.amount}
+              WHEN ${transactionsTable.type} = 'expense' THEN -${transactionsTable.amount}
+              WHEN ${transactionsTable.type} = 'transfer' THEN ${transactionsTable.amount}
+              WHEN ${transactionsTable.type} = 'savings' THEN -${transactionsTable.amount}
+              ELSE 0
+            END
+          ),
+          0
+        )
+      `,
+    })
+    .from(transactionsTable);
 
-  if (result.length === 0 || result[0].values.length === 0) {
-    return 0;
-  }
-
-  return result[0].values[0][0] as number;
+  return result[0]?.net_worth || 0;
 }
 
 /**
@@ -437,45 +414,37 @@ export function getNetWorth(): number {
 export function countTransactions(filter?: TransactionFilter): number {
   const db = getDatabase();
 
-  const conditions: string[] = [];
-  const values: (string | number)[] = [];
+  let query = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(transactionsTable);
+
+  const conditions = [];
 
   if (filter?.type) {
-    conditions.push("type = ?");
-    values.push(filter.type);
+    conditions.push(eq(transactionsTable.type, filter.type));
   }
 
   if (filter?.wallet_id) {
-    conditions.push("wallet_id = ?");
-    values.push(filter.wallet_id);
+    conditions.push(eq(transactionsTable.wallet_id, filter.wallet_id));
   }
 
   if (filter?.category_id) {
-    conditions.push("category_id = ?");
-    values.push(filter.category_id);
+    conditions.push(eq(transactionsTable.category_id, filter.category_id));
   }
 
   if (filter?.start_date) {
-    conditions.push("date >= ?");
-    values.push(filter.start_date);
+    conditions.push(sql`${transactionsTable.date} >= ${filter.start_date}`);
   }
 
   if (filter?.end_date) {
-    conditions.push("date < ?");
-    values.push(filter.end_date);
+    conditions.push(sql`${transactionsTable.date} < ${filter.end_date}`);
   }
 
-  const whereClause =
-    conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-
-  const result = db.exec(
-    `SELECT COUNT(*) as count FROM transactions ${whereClause}`,
-    values,
-  );
-
-  if (result.length === 0 || result[0].values.length === 0) {
-    return 0;
+  if (conditions.length > 0) {
+    query = query.where(and(...conditions));
   }
 
-  return result[0].values[0][0] as number;
+  const result = query;
+
+  return result[0]?.count || 0;
 }

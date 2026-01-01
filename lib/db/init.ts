@@ -1,35 +1,46 @@
-import { initializeDatabase, closeDatabase, getDatabase } from "./index";
 import {
-  initializeSchema,
+  initializeDatabase,
+  closeDatabase,
+  saveDatabase,
+  getDatabaseSync,
   isDatabaseInitialized,
-  seedDefaultCategories,
-} from "./schema";
+} from "./drizzle";
+import { seedDefaultCategories } from "./seed";
 
 /**
  * Initialize the database on app startup
  * This should be called once when the application starts
  */
 export async function initDatabase(): Promise<void> {
-  // Initialize SQL.js and get database connection
+  // Initialize SQL.js and Drizzle ORM
   await initializeDatabase();
 
   // Check if schema already exists
   if (!isDatabaseInitialized()) {
     console.log("[DB] Initializing database schema...");
-    initializeSchema();
-    seedDefaultCategories();
+
+    // Run migrations if available (in future)
+    // For now, the database is already initialized with the existing schema
+
+    // Seed default categories using Drizzle
+    const db = await getDatabaseSync();
+    await seedDefaultCategories(db);
+
     console.log("[DB] Database initialized with default categories");
   } else {
-    // Ensure schema is up to date (idempotent)
-    initializeSchema();
     console.log("[DB] Database connected");
   }
+
+  // Save initial state
+  saveDatabase();
 }
 
 /**
  * Gracefully shutdown the database connection
+ * Call this when the application is shutting down
  */
 export function shutdownDatabase(): void {
+  saveDatabase();
   closeDatabase();
   console.log("[DB] Database connection closed");
 }
@@ -42,22 +53,17 @@ export function shutdownDatabase(): void {
 export async function ensureDatabase(): Promise<void> {
   try {
     // Try to get the database - if it throws, we need to initialize
-    getDatabase();
+    getDatabaseSync();
   } catch {
+    console.log("[DB] Database not initialized, initializing now...");
     await initDatabase();
   }
 }
 
 // Export for convenience
 export {
-  initializeSchema,
-  isDatabaseInitialized,
-  seedDefaultCategories,
-} from "./schema";
-export {
-  getDatabase,
-  closeDatabase,
-  getDatabasePath,
   initializeDatabase,
+  closeDatabase,
   saveDatabase,
-} from "./index";
+  getDatabaseSync,
+} from "./drizzle";

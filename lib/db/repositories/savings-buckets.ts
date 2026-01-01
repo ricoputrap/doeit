@@ -4,37 +4,25 @@ import type {
   CreateSavingsBucketInput,
   UpdateSavingsBucketInput,
 } from "../types";
+import { savingsBucketsTable } from "../schema/savings-buckets.js";
+import { transactionsTable } from "../schema/transactions.js";
+import { eq, sql } from "drizzle-orm";
 
 /**
- * Savings Bucket Repository
+ * Savings Bucket Repository using Drizzle ORM
  * Handles all database operations for savings buckets
  */
-
-/**
- * Helper to convert sql.js result to array of objects
- */
-function resultToArray<T>(result: any[]): T[] {
-  if (!result || result.length === 0) return [];
-  const [queryResult] = result;
-  if (!queryResult) return [];
-
-  const { columns, values } = queryResult;
-  return values.map((row: any[]) => {
-    const obj: Record<string, unknown> = {};
-    columns.forEach((col: string, idx: number) => {
-      obj[col] = row[idx];
-    });
-    return obj as T;
-  });
-}
 
 /**
  * Get all savings buckets
  */
 export function getAllSavingsBuckets(): SavingsBucket[] {
   const db = getDatabase();
-  const result = db.exec("SELECT * FROM savings_buckets ORDER BY name");
-  return resultToArray<SavingsBucket>(result);
+  const result = db
+    .select()
+    .from(savingsBucketsTable)
+    .orderBy(savingsBucketsTable.name);
+  return result;
 }
 
 /**
@@ -42,17 +30,11 @@ export function getAllSavingsBuckets(): SavingsBucket[] {
  */
 export function getSavingsBucketById(id: number): SavingsBucket | null {
   const db = getDatabase();
-  const stmt = db.prepare("SELECT * FROM savings_buckets WHERE id = ?");
-  stmt.bind([id]);
-
-  if (stmt.step()) {
-    const row = stmt.getAsObject() as unknown as SavingsBucket;
-    stmt.free();
-    return row;
-  }
-
-  stmt.free();
-  return null;
+  const result = db
+    .select()
+    .from(savingsBucketsTable)
+    .where(eq(savingsBucketsTable.id, id));
+  return result[0] || null;
 }
 
 /**
@@ -60,17 +42,11 @@ export function getSavingsBucketById(id: number): SavingsBucket | null {
  */
 export function getSavingsBucketByName(name: string): SavingsBucket | null {
   const db = getDatabase();
-  const stmt = db.prepare("SELECT * FROM savings_buckets WHERE name = ?");
-  stmt.bind([name]);
-
-  if (stmt.step()) {
-    const row = stmt.getAsObject() as unknown as SavingsBucket;
-    stmt.free();
-    return row;
-  }
-
-  stmt.free();
-  return null;
+  const result = db
+    .select()
+    .from(savingsBucketsTable)
+    .where(eq(savingsBucketsTable.name, name));
+  return result[0] || null;
 }
 
 /**
@@ -81,17 +57,16 @@ export function createSavingsBucket(
 ): SavingsBucket {
   const db = getDatabase();
 
-  db.run(
-    `INSERT INTO savings_buckets (name, created_at, updated_at) VALUES (?, datetime('now'), datetime('now'))`,
-    [input.name],
-  );
-
-  const id = db.exec("SELECT last_insert_rowid() as id")[0]
-    .values[0][0] as number;
+  const result = db
+    .insert(savingsBucketsTable)
+    .values({
+      name: input.name,
+    })
+    .returning();
 
   saveDatabase();
 
-  return getSavingsBucketById(id)!;
+  return result[0];
 }
 
 /**
@@ -109,29 +84,24 @@ export function updateSavingsBucket(
     return null;
   }
 
-  // Build update query dynamically based on provided fields
-  const updates: string[] = [];
-  const values: (string | number)[] = [];
+  // Build update values dynamically
+  const updateValues: Partial<typeof savingsBucketsTable.$inferInsert> = {
+    updated_at: new Date().toISOString(),
+  };
 
   if (input.name !== undefined) {
-    updates.push("name = ?");
-    values.push(input.name);
+    updateValues.name = input.name;
   }
 
-  // Always update updated_at
-  updates.push("updated_at = datetime('now')");
-
-  // Add id for WHERE clause
-  values.push(id);
-
-  db.run(
-    `UPDATE savings_buckets SET ${updates.join(", ")} WHERE id = ?`,
-    values,
-  );
+  const result = db
+    .update(savingsBucketsTable)
+    .set(updateValues)
+    .where(eq(savingsBucketsTable.id, id))
+    .returning();
 
   saveDatabase();
 
-  return getSavingsBucketById(id);
+  return result[0] || null;
 }
 
 /**
@@ -149,9 +119,13 @@ export function deleteSavingsBucket(id: number): boolean {
   }
 
   try {
-    db.run("DELETE FROM savings_buckets WHERE id = ?", [id]);
+    const result = db
+      .delete(savingsBucketsTable)
+      .where(eq(savingsBucketsTable.id, id))
+      .returning({ id: savingsBucketsTable.id });
+
     saveDatabase();
-    return true;
+    return result.length > 0;
   } catch (error) {
     throw error;
   }
@@ -162,11 +136,13 @@ export function deleteSavingsBucket(id: number): boolean {
  */
 export function savingsBucketExists(id: number): boolean {
   const db = getDatabase();
-  const stmt = db.prepare("SELECT 1 FROM savings_buckets WHERE id = ?");
-  stmt.bind([id]);
-  const exists = stmt.step();
-  stmt.free();
-  return exists;
+  const result = db
+    .select({ id: savingsBucketsTable.id })
+    .from(savingsBucketsTable)
+    .where(eq(savingsBucketsTable.id, id))
+    .limit(1);
+
+  return result.length > 0;
 }
 
 /**
@@ -175,21 +151,19 @@ export function savingsBucketExists(id: number): boolean {
 export function getSavingsBucketBalance(id: number): number {
   const db = getDatabase();
 
-  const result = db.exec(
-    `
-    SELECT COALESCE(SUM(amount), 0) as balance
-    FROM transactions
-    WHERE savings_bucket_id = ?
-      AND type = 'savings'
-  `,
-    [id],
-  );
+  const result = db
+    .select({
+      balance: sql<number>`
+        COALESCE(
+          SUM(${transactionsTable.amount}),
+          0
+        )
+      `,
+    })
+    .from(transactionsTable)
+    .where(eq(transactionsTable.savings_bucket_id, id));
 
-  if (result.length === 0 || result[0].values.length === 0) {
-    return 0;
-  }
-
-  return result[0].values[0][0] as number;
+  return result[0]?.balance || 0;
 }
 
 /**
@@ -200,23 +174,28 @@ export function getAllSavingsBucketsWithBalances(): (SavingsBucket & {
 })[] {
   const db = getDatabase();
 
-  const result = db.exec(`
-    SELECT
-      sb.*,
-      COALESCE(
-        (
-          SELECT SUM(t.amount)
-          FROM transactions t
-          WHERE t.savings_bucket_id = sb.id
-            AND t.type = 'savings'
-        ),
-        0
-      ) as balance
-    FROM savings_buckets sb
-    ORDER BY sb.name
-  `);
+  const result = db
+    .select({
+      id: savingsBucketsTable.id,
+      name: savingsBucketsTable.name,
+      created_at: savingsBucketsTable.created_at,
+      updated_at: savingsBucketsTable.updated_at,
+      balance: sql<number>`
+        COALESCE(
+          (
+            SELECT SUM(${transactionsTable.amount})
+            FROM ${transactionsTable}
+            WHERE ${transactionsTable.savings_bucket_id} = ${savingsBucketsTable.id}
+              AND ${transactionsTable.type} = 'savings'
+          ),
+          0
+        )
+      `,
+    })
+    .from(savingsBucketsTable)
+    .orderBy(savingsBucketsTable.name);
 
-  return resultToArray<SavingsBucket & { balance: number }>(result);
+  return result as (SavingsBucket & { balance: number })[];
 }
 
 /**
@@ -225,11 +204,9 @@ export function getAllSavingsBucketsWithBalances(): (SavingsBucket & {
 export function countSavingsBuckets(): number {
   const db = getDatabase();
 
-  const result = db.exec("SELECT COUNT(*) as count FROM savings_buckets");
+  const result = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(savingsBucketsTable);
 
-  if (result.length === 0 || result[0].values.length === 0) {
-    return 0;
-  }
-
-  return result[0].values[0][0] as number;
+  return result[0]?.count || 0;
 }

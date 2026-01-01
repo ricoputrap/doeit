@@ -6,37 +6,25 @@ import type {
   CategoryType,
   CategoryWithSpent,
 } from "../types";
+import { categoriesTable } from "../schema/categories.js";
+import { transactionsTable } from "../schema/transactions.js";
+import { and, eq, sql, desc } from "drizzle-orm";
 
 /**
- * Category Repository
+ * Category Repository using Drizzle ORM
  * Handles all database operations for categories
  */
-
-/**
- * Helper to convert sql.js result to array of objects
- */
-function resultToArray<T>(result: any[]): T[] {
-  if (!result || result.length === 0) return [];
-  const [queryResult] = result;
-  if (!queryResult) return [];
-
-  const { columns, values } = queryResult;
-  return values.map((row: any[]) => {
-    const obj: Record<string, unknown> = {};
-    columns.forEach((col: string, idx: number) => {
-      obj[col] = row[idx];
-    });
-    return obj as T;
-  });
-}
 
 /**
  * Get all categories
  */
 export function getAllCategories(): Category[] {
   const db = getDatabase();
-  const result = db.exec("SELECT * FROM categories ORDER BY type, name");
-  return resultToArray<Category>(result);
+  const result = db
+    .select()
+    .from(categoriesTable)
+    .orderBy(categoriesTable.type, categoriesTable.name);
+  return result;
 }
 
 /**
@@ -44,11 +32,12 @@ export function getAllCategories(): Category[] {
  */
 export function getCategoriesByType(type: CategoryType): Category[] {
   const db = getDatabase();
-  const result = db.exec(
-    "SELECT * FROM categories WHERE type = ? ORDER BY name",
-    [type],
-  );
-  return resultToArray<Category>(result);
+  const result = db
+    .select()
+    .from(categoriesTable)
+    .where(eq(categoriesTable.type, type))
+    .orderBy(categoriesTable.name);
+  return result;
 }
 
 /**
@@ -56,17 +45,11 @@ export function getCategoriesByType(type: CategoryType): Category[] {
  */
 export function getCategoryById(id: number): Category | null {
   const db = getDatabase();
-  const stmt = db.prepare("SELECT * FROM categories WHERE id = ?");
-  stmt.bind([id]);
-
-  if (stmt.step()) {
-    const row = stmt.getAsObject() as unknown as Category;
-    stmt.free();
-    return row;
-  }
-
-  stmt.free();
-  return null;
+  const result = db
+    .select()
+    .from(categoriesTable)
+    .where(eq(categoriesTable.id, id));
+  return result[0] || null;
 }
 
 /**
@@ -77,19 +60,11 @@ export function getCategoryByNameAndType(
   type: CategoryType,
 ): Category | null {
   const db = getDatabase();
-  const stmt = db.prepare(
-    "SELECT * FROM categories WHERE name = ? AND type = ?",
-  );
-  stmt.bind([name, type]);
-
-  if (stmt.step()) {
-    const row = stmt.getAsObject() as unknown as Category;
-    stmt.free();
-    return row;
-  }
-
-  stmt.free();
-  return null;
+  const result = db
+    .select()
+    .from(categoriesTable)
+    .where(and(eq(categoriesTable.name, name), eq(categoriesTable.type, type)));
+  return result[0] || null;
 }
 
 /**
@@ -98,17 +73,17 @@ export function getCategoryByNameAndType(
 export function createCategory(input: CreateCategoryInput): Category {
   const db = getDatabase();
 
-  db.run(
-    `INSERT INTO categories (name, type, created_at, updated_at) VALUES (?, ?, datetime('now'), datetime('now'))`,
-    [input.name, input.type],
-  );
-
-  const id = db.exec("SELECT last_insert_rowid() as id")[0]
-    .values[0][0] as number;
+  const result = db
+    .insert(categoriesTable)
+    .values({
+      name: input.name,
+      type: input.type,
+    })
+    .returning();
 
   saveDatabase();
 
-  return getCategoryById(id)!;
+  return result[0];
 }
 
 /**
@@ -126,31 +101,28 @@ export function updateCategory(
     return null;
   }
 
-  // Build update query dynamically based on provided fields
-  const updates: string[] = [];
-  const values: (string | number)[] = [];
+  // Build update values dynamically
+  const updateValues: Partial<typeof categoriesTable.$inferInsert> = {
+    updated_at: new Date().toISOString(),
+  };
 
   if (input.name !== undefined) {
-    updates.push("name = ?");
-    values.push(input.name);
+    updateValues.name = input.name;
   }
 
   if (input.type !== undefined) {
-    updates.push("type = ?");
-    values.push(input.type);
+    updateValues.type = input.type;
   }
 
-  // Always update updated_at
-  updates.push("updated_at = datetime('now')");
-
-  // Add id for WHERE clause
-  values.push(id);
-
-  db.run(`UPDATE categories SET ${updates.join(", ")} WHERE id = ?`, values);
+  const result = db
+    .update(categoriesTable)
+    .set(updateValues)
+    .where(eq(categoriesTable.id, id))
+    .returning();
 
   saveDatabase();
 
-  return getCategoryById(id);
+  return result[0] || null;
 }
 
 /**
@@ -168,9 +140,13 @@ export function deleteCategory(id: number): boolean {
   }
 
   try {
-    db.run("DELETE FROM categories WHERE id = ?", [id]);
+    const result = db
+      .delete(categoriesTable)
+      .where(eq(categoriesTable.id, id))
+      .returning({ id: categoriesTable.id });
+
     saveDatabase();
-    return true;
+    return result.length > 0;
   } catch (error) {
     throw error;
   }
@@ -181,11 +157,13 @@ export function deleteCategory(id: number): boolean {
  */
 export function categoryExists(id: number): boolean {
   const db = getDatabase();
-  const stmt = db.prepare("SELECT 1 FROM categories WHERE id = ?");
-  stmt.bind([id]);
-  const exists = stmt.step();
-  stmt.free();
-  return exists;
+  const result = db
+    .select({ id: categoriesTable.id })
+    .from(categoriesTable)
+    .where(eq(categoriesTable.id, id))
+    .limit(1);
+
+  return result.length > 0;
 }
 
 /**
@@ -197,29 +175,32 @@ export function getCategoriesWithSpent(
 ): CategoryWithSpent[] {
   const db = getDatabase();
 
-  const result = db.exec(
-    `
-    SELECT
-      c.*,
-      COALESCE(
-        (
-          SELECT SUM(t.amount)
-          FROM transactions t
-          WHERE t.category_id = c.id
-            AND t.type = 'expense'
-            AND t.date >= ?
-            AND t.date < ?
-        ),
-        0
-      ) as spent
-    FROM categories c
-    WHERE c.type = 'expense'
-    ORDER BY c.name
-  `,
-    [startDate, endDate],
-  );
+  const result = db
+    .select({
+      id: categoriesTable.id,
+      name: categoriesTable.name,
+      type: categoriesTable.type,
+      created_at: categoriesTable.created_at,
+      updated_at: categoriesTable.updated_at,
+      spent: sql<number>`
+        COALESCE(
+          (
+            SELECT SUM(${transactionsTable.amount})
+            FROM ${transactionsTable}
+            WHERE ${transactionsTable.category_id} = ${categoriesTable.id}
+              AND ${transactionsTable.type} = 'expense'
+              AND ${transactionsTable.date} >= ${startDate}
+              AND ${transactionsTable.date} < ${endDate}
+          ),
+          0
+        )
+      `,
+    })
+    .from(categoriesTable)
+    .where(eq(categoriesTable.type, "expense"))
+    .orderBy(categoriesTable.name);
 
-  return resultToArray<CategoryWithSpent>(result);
+  return result as CategoryWithSpent[];
 }
 
 /**
@@ -232,23 +213,26 @@ export function getCategorySpent(
 ): number {
   const db = getDatabase();
 
-  const result = db.exec(
-    `
-    SELECT COALESCE(SUM(amount), 0) as spent
-    FROM transactions
-    WHERE category_id = ?
-      AND type = 'expense'
-      AND date >= ?
-      AND date < ?
-  `,
-    [categoryId, startDate, endDate],
-  );
+  const result = db
+    .select({
+      spent: sql<number>`
+        COALESCE(
+          SUM(${transactionsTable.amount}),
+          0
+        )
+      `,
+    })
+    .from(transactionsTable)
+    .where(
+      and(
+        eq(transactionsTable.category_id, categoryId),
+        eq(transactionsTable.type, "expense"),
+        sql`${transactionsTable.date} >= ${startDate}`,
+        sql`${transactionsTable.date} < ${endDate}`,
+      ),
+    );
 
-  if (result.length === 0 || result[0].values.length === 0) {
-    return 0;
-  }
-
-  return result[0].values[0][0] as number;
+  return result[0]?.spent || 0;
 }
 
 /**
@@ -257,13 +241,11 @@ export function getCategorySpent(
 export function countCategories(): number {
   const db = getDatabase();
 
-  const result = db.exec("SELECT COUNT(*) as count FROM categories");
+  const result = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(categoriesTable);
 
-  if (result.length === 0 || result[0].values.length === 0) {
-    return 0;
-  }
-
-  return result[0].values[0][0] as number;
+  return result[0]?.count || 0;
 }
 
 /**
@@ -272,14 +254,10 @@ export function countCategories(): number {
 export function countCategoriesByType(type: CategoryType): number {
   const db = getDatabase();
 
-  const result = db.exec(
-    "SELECT COUNT(*) as count FROM categories WHERE type = ?",
-    [type],
-  );
+  const result = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(categoriesTable)
+    .where(eq(categoriesTable.type, type));
 
-  if (result.length === 0 || result[0].values.length === 0) {
-    return 0;
-  }
-
-  return result[0].values[0][0] as number;
+  return result[0]?.count || 0;
 }

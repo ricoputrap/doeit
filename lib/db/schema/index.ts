@@ -6,8 +6,8 @@
  */
 
 // Export all table schemas
-export * from "./wallets";
-export * from "./categories";
-export * from "./savings-buckets";
-export * from "./transactions";
-export * from "./budgets";
+export * from "./wallets.js";
+export * from "./categories.js";
+export * from "./savings-buckets.js";
+export * from "./transactions.js";
+export * from "./budgets.js";

@@ -6,29 +6,15 @@ import type {
   BudgetFilter,
   BudgetWithActual,
 } from "../types";
+import { budgetsTable } from "../schema/budgets.js";
+import { categoriesTable } from "../schema/categories.js";
+import { transactionsTable } from "../schema/transactions.js";
+import { eq, and, sql, desc } from "drizzle-orm";
 
 /**
- * Budget Repository
+ * Budget Repository using Drizzle ORM
  * Handles all database operations for budgets
  */
-
-/**
- * Helper to convert sql.js result to array of objects
- */
-function resultToArray<T>(result: any[]): T[] {
-  if (!result || result.length === 0) return [];
-  const [queryResult] = result;
-  if (!queryResult) return [];
-
-  const { columns, values } = queryResult;
-  return values.map((row: any[]) => {
-    const obj: Record<string, unknown> = {};
-    columns.forEach((col: string, idx: number) => {
-      obj[col] = row[idx];
-    });
-    return obj as T;
-  });
-}
 
 /**
  * Get all budgets with optional filters
@@ -36,28 +22,26 @@ function resultToArray<T>(result: any[]): T[] {
 export function getBudgets(filter?: BudgetFilter): Budget[] {
   const db = getDatabase();
 
-  const conditions: string[] = [];
-  const values: (string | number)[] = [];
+  let query = db.select().from(budgetsTable);
+
+  const conditions = [];
 
   if (filter?.month) {
-    conditions.push("month = ?");
-    values.push(filter.month);
+    conditions.push(eq(budgetsTable.month, filter.month));
   }
 
   if (filter?.category_id) {
-    conditions.push("category_id = ?");
-    values.push(filter.category_id);
+    conditions.push(eq(budgetsTable.category_id, filter.category_id));
   }
 
-  const whereClause =
-    conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  if (conditions.length > 0) {
+    query = query.where(and(...conditions));
+  }
 
-  const result = db.exec(
-    `SELECT * FROM budgets ${whereClause} ORDER BY month DESC`,
-    values,
-  );
+  query = query.orderBy(desc(budgetsTable.month));
 
-  return resultToArray<Budget>(result);
+  const result = query;
+  return result;
 }
 
 /**
@@ -65,17 +49,8 @@ export function getBudgets(filter?: BudgetFilter): Budget[] {
  */
 export function getBudgetById(id: number): Budget | null {
   const db = getDatabase();
-  const stmt = db.prepare("SELECT * FROM budgets WHERE id = ?");
-  stmt.bind([id]);
-
-  if (stmt.step()) {
-    const row = stmt.getAsObject() as unknown as Budget;
-    stmt.free();
-    return row;
-  }
-
-  stmt.free();
-  return null;
+  const result = db.select().from(budgetsTable).where(eq(budgetsTable.id, id));
+  return result[0] || null;
 }
 
 /**
@@ -86,19 +61,16 @@ export function getBudgetByMonthAndCategory(
   categoryId: number,
 ): Budget | null {
   const db = getDatabase();
-  const stmt = db.prepare(
-    "SELECT * FROM budgets WHERE month = ? AND category_id = ?",
-  );
-  stmt.bind([month, categoryId]);
-
-  if (stmt.step()) {
-    const row = stmt.getAsObject() as unknown as Budget;
-    stmt.free();
-    return row;
-  }
-
-  stmt.free();
-  return null;
+  const result = db
+    .select()
+    .from(budgetsTable)
+    .where(
+      and(
+        eq(budgetsTable.month, month),
+        eq(budgetsTable.category_id, categoryId),
+      ),
+    );
+  return result[0] || null;
 }
 
 /**
@@ -107,18 +79,18 @@ export function getBudgetByMonthAndCategory(
 export function createBudget(input: CreateBudgetInput): Budget {
   const db = getDatabase();
 
-  db.run(
-    `INSERT INTO budgets (month, category_id, limit_amount, created_at, updated_at)
-     VALUES (?, ?, ?, datetime('now'), datetime('now'))`,
-    [input.month, input.category_id, input.limit_amount],
-  );
-
-  const id = db.exec("SELECT last_insert_rowid() as id")[0]
-    .values[0][0] as number;
+  const result = db
+    .insert(budgetsTable)
+    .values({
+      month: input.month,
+      category_id: input.category_id,
+      limit_amount: input.limit_amount,
+    })
+    .returning();
 
   saveDatabase();
 
-  return getBudgetById(id)!;
+  return result[0];
 }
 
 /**
@@ -149,26 +121,24 @@ export function updateBudget(
     return null;
   }
 
-  // Build update query dynamically based on provided fields
-  const updates: string[] = [];
-  const values: (string | number)[] = [];
+  // Build update values dynamically
+  const updateValues: Partial<typeof budgetsTable.$inferInsert> = {
+    updated_at: new Date().toISOString(),
+  };
 
   if (input.limit_amount !== undefined) {
-    updates.push("limit_amount = ?");
-    values.push(input.limit_amount);
+    updateValues.limit_amount = input.limit_amount;
   }
 
-  // Always update updated_at
-  updates.push("updated_at = datetime('now')");
-
-  // Add id for WHERE clause
-  values.push(id);
-
-  db.run(`UPDATE budgets SET ${updates.join(", ")} WHERE id = ?`, values);
+  const result = db
+    .update(budgetsTable)
+    .set(updateValues)
+    .where(eq(budgetsTable.id, id))
+    .returning();
 
   saveDatabase();
 
-  return getBudgetById(id);
+  return result[0] || null;
 }
 
 /**
@@ -184,9 +154,13 @@ export function deleteBudget(id: number): boolean {
     return false;
   }
 
-  db.run("DELETE FROM budgets WHERE id = ?", [id]);
+  const result = db
+    .delete(budgetsTable)
+    .where(eq(budgetsTable.id, id))
+    .returning({ id: budgetsTable.id });
+
   saveDatabase();
-  return true;
+  return result.length > 0;
 }
 
 /**
@@ -204,12 +178,18 @@ export function deleteBudgetByMonthAndCategory(
     return false;
   }
 
-  db.run("DELETE FROM budgets WHERE month = ? AND category_id = ?", [
-    month,
-    categoryId,
-  ]);
+  const result = db
+    .delete(budgetsTable)
+    .where(
+      and(
+        eq(budgetsTable.month, month),
+        eq(budgetsTable.category_id, categoryId),
+      ),
+    )
+    .returning({ id: budgetsTable.id });
+
   saveDatabase();
-  return true;
+  return result.length > 0;
 }
 
 /**
@@ -225,42 +205,51 @@ export function getBudgetsWithActual(month: string): BudgetWithActual[] {
   const nextYear = monthNum === 12 ? year + 1 : year;
   const endDate = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
 
-  const result = db.exec(
-    `
-    SELECT
-      b.*,
-      c.name as category_name,
-      COALESCE(
-        (
-          SELECT SUM(t.amount)
-          FROM transactions t
-          WHERE t.category_id = b.category_id
-            AND t.type = 'expense'
-            AND t.date >= b.month
-            AND t.date < ?
-        ),
-        0
-      ) as actual_spent,
-      b.limit_amount - COALESCE(
-        (
-          SELECT SUM(t.amount)
-          FROM transactions t
-          WHERE t.category_id = b.category_id
-            AND t.type = 'expense'
-            AND t.date >= b.month
-            AND t.date < ?
-        ),
-        0
-      ) as remaining
-    FROM budgets b
-    JOIN categories c ON c.id = b.category_id
-    WHERE b.month = ?
-    ORDER BY c.name
-  `,
-    [endDate, endDate, month],
-  );
+  const result = db
+    .select({
+      id: budgetsTable.id,
+      month: budgetsTable.month,
+      category_id: budgetsTable.category_id,
+      limit_amount: budgetsTable.limit_amount,
+      created_at: budgetsTable.created_at,
+      updated_at: budgetsTable.updated_at,
+      category_name: categoriesTable.name,
+      actual_spent: sql<number>`
+        COALESCE(
+          (
+            SELECT SUM(${transactionsTable.amount})
+            FROM ${transactionsTable}
+            WHERE ${transactionsTable.category_id} = ${budgetsTable.category_id}
+              AND ${transactionsTable.type} = 'expense'
+              AND ${transactionsTable.date} >= ${budgetsTable.month}
+              AND ${transactionsTable.date} < ${endDate}
+          ),
+          0
+        )
+      `,
+      remaining: sql<number>`
+        ${budgetsTable.limit_amount} - COALESCE(
+          (
+            SELECT SUM(${transactionsTable.amount})
+            FROM ${transactionsTable}
+            WHERE ${transactionsTable.category_id} = ${budgetsTable.category_id}
+              AND ${transactionsTable.type} = 'expense'
+              AND ${transactionsTable.date} >= ${budgetsTable.month}
+              AND ${transactionsTable.date} < ${endDate}
+          ),
+          0
+        )
+      `,
+    })
+    .from(budgetsTable)
+    .innerJoin(
+      categoriesTable,
+      eq(budgetsTable.category_id, categoriesTable.id),
+    )
+    .where(eq(budgetsTable.month, month))
+    .orderBy(categoriesTable.name);
 
-  return resultToArray<BudgetWithActual>(result);
+  return result as BudgetWithActual[];
 }
 
 /**
@@ -280,41 +269,50 @@ export function getBudgetWithActual(id: number): BudgetWithActual | null {
   const nextYear = monthNum === 12 ? year + 1 : year;
   const endDate = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
 
-  const result = db.exec(
-    `
-    SELECT
-      b.*,
-      c.name as category_name,
-      COALESCE(
-        (
-          SELECT SUM(t.amount)
-          FROM transactions t
-          WHERE t.category_id = b.category_id
-            AND t.type = 'expense'
-            AND t.date >= b.month
-            AND t.date < ?
-        ),
-        0
-      ) as actual_spent,
-      b.limit_amount - COALESCE(
-        (
-          SELECT SUM(t.amount)
-          FROM transactions t
-          WHERE t.category_id = b.category_id
-            AND t.type = 'expense'
-            AND t.date >= b.month
-            AND t.date < ?
-        ),
-        0
-      ) as remaining
-    FROM budgets b
-    JOIN categories c ON c.id = b.category_id
-    WHERE b.id = ?
-  `,
-    [endDate, endDate, id],
-  );
+  const result = db
+    .select({
+      id: budgetsTable.id,
+      month: budgetsTable.month,
+      category_id: budgetsTable.category_id,
+      limit_amount: budgetsTable.limit_amount,
+      created_at: budgetsTable.created_at,
+      updated_at: budgetsTable.updated_at,
+      category_name: categoriesTable.name,
+      actual_spent: sql<number>`
+        COALESCE(
+          (
+            SELECT SUM(${transactionsTable.amount})
+            FROM ${transactionsTable}
+            WHERE ${transactionsTable.category_id} = ${budgetsTable.category_id}
+              AND ${transactionsTable.type} = 'expense'
+              AND ${transactionsTable.date} >= ${budgetsTable.month}
+              AND ${transactionsTable.date} < ${endDate}
+          ),
+          0
+        )
+      `,
+      remaining: sql<number>`
+        ${budgetsTable.limit_amount} - COALESCE(
+          (
+            SELECT SUM(${transactionsTable.amount})
+            FROM ${transactionsTable}
+            WHERE ${transactionsTable.category_id} = ${budgetsTable.category_id}
+              AND ${transactionsTable.type} = 'expense'
+              AND ${transactionsTable.date} >= ${budgetsTable.month}
+              AND ${transactionsTable.date} < ${endDate}
+          ),
+          0
+        )
+      `,
+    })
+    .from(budgetsTable)
+    .innerJoin(
+      categoriesTable,
+      eq(budgetsTable.category_id, categoriesTable.id),
+    )
+    .where(eq(budgetsTable.id, id));
 
-  const results = resultToArray<BudgetWithActual>(result);
+  const results = result as BudgetWithActual[];
   return results.length > 0 ? results[0] : null;
 }
 
@@ -324,20 +322,16 @@ export function getBudgetWithActual(id: number): BudgetWithActual | null {
 export function getTotalBudgetForMonth(month: string): number {
   const db = getDatabase();
 
-  const result = db.exec(
-    `
-    SELECT COALESCE(SUM(limit_amount), 0) as total
-    FROM budgets
-    WHERE month = ?
-  `,
-    [month],
-  );
+  const result = db
+    .select({
+      total: sql<number>`
+        COALESCE(SUM(${budgetsTable.limit_amount}), 0)
+      `,
+    })
+    .from(budgetsTable)
+    .where(eq(budgetsTable.month, month));
 
-  if (result.length === 0 || result[0].values.length === 0) {
-    return 0;
-  }
-
-  return result[0].values[0][0] as number;
+  return result[0]?.total || 0;
 }
 
 /**
@@ -346,17 +340,13 @@ export function getTotalBudgetForMonth(month: string): number {
 export function getBudgetMonths(): string[] {
   const db = getDatabase();
 
-  const result = db.exec(`
-    SELECT DISTINCT month
-    FROM budgets
-    ORDER BY month DESC
-  `);
+  const result = db
+    .select({ month: budgetsTable.month })
+    .from(budgetsTable)
+    .groupBy(budgetsTable.month)
+    .orderBy(desc(budgetsTable.month));
 
-  if (result.length === 0 || result[0].values.length === 0) {
-    return [];
-  }
-
-  return result[0].values.map((row) => row[0] as string);
+  return result.map((row) => row.month);
 }
 
 /**
@@ -365,32 +355,25 @@ export function getBudgetMonths(): string[] {
 export function countBudgets(filter?: BudgetFilter): number {
   const db = getDatabase();
 
-  const conditions: string[] = [];
-  const values: (string | number)[] = [];
+  let query = db.select({ count: sql<number>`COUNT(*)` }).from(budgetsTable);
+
+  const conditions = [];
 
   if (filter?.month) {
-    conditions.push("month = ?");
-    values.push(filter.month);
+    conditions.push(eq(budgetsTable.month, filter.month));
   }
 
   if (filter?.category_id) {
-    conditions.push("category_id = ?");
-    values.push(filter.category_id);
+    conditions.push(eq(budgetsTable.category_id, filter.category_id));
   }
 
-  const whereClause =
-    conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-
-  const result = db.exec(
-    `SELECT COUNT(*) as count FROM budgets ${whereClause}`,
-    values,
-  );
-
-  if (result.length === 0 || result[0].values.length === 0) {
-    return 0;
+  if (conditions.length > 0) {
+    query = query.where(and(...conditions));
   }
 
-  return result[0].values[0][0] as number;
+  const result = query;
+
+  return result[0]?.count || 0;
 }
 
 /**
